@@ -24,13 +24,18 @@ class Tournament(db.Model, SerializerMixin):
     game = db.Column(db.String)
     format = db.Column(db.Integer) #This is to indicate tournamnet format, DE, Swiss, ladder etc
     created_at = db.Column(db.DateTime(timezone=True), default= db.func.now())
-    status = db.Column(db.String) #Started, in progress, completed
+    status = db.Column(db.String) #Not yet started, in progress, completed
 
     #ForeignKeys
     creator = db.Column(db.Integer, db.ForeignKey('Users.id'))
 
     #Relationships
     #Validations
+    @validates('name')
+    def validate_name(self,key,name):
+        if len(name)<=10:
+            return name
+        raise ValueError
     #Serialization Rules
     #repr 
 
@@ -58,6 +63,9 @@ class Entrant(db.Model, SerializerMixin):
     username = db.Column(db.String)
     point_total = db.Column(db.BLOB)
     opponents = db.Column((db.Integer))
+    dropped = db.Column(db.Boolean, default='False')
+    pair_up_down = db.Column(db.Boolean, default = 0)
+    bye = db.Column(db.Boolean, default='False')
 
     #Foreign Keys
     tournament_id = db.Column(db.Integer, db.ForeignKey('Tournaments.id'))
