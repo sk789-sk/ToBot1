@@ -46,11 +46,25 @@ def alter_Tournament_Entrant(t_id):
     data = request.get_json()
 
     if request.method == 'POST':
-        print('post')
+        try:
+            new_Entrant = Entrant(
+                tournament_id = t_id,
+                username = data['username']
+            )
+            print(new_Entrant)
+
+            db.session.add(new_Entrant)
+            db.session.commit()
+            
+            print('created')
+            response = make_response(jsonify(new_Entrant.to_dict()),200)
+        except:
+            response = make_response({},200)
+            print('failed')
     else:
         print('delete')
 
-    return 'success'
+    return response
 
 @app.route('/Generate_Matches')
 def generate_matches():
@@ -85,4 +99,4 @@ def return_all(t_id):
 
 if __name__ == '__main__':
 
-    app.run(port=5555, debug=True)
+    app.run(port=5556, debug=True)

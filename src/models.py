@@ -61,9 +61,9 @@ class Entrant(db.Model, SerializerMixin):
     __tablename__ = 'Entrants'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String)
-    point_total = db.Column(db.BLOB)
-    opponents = db.Column((db.Integer))
-    dropped = db.Column(db.Boolean, default='False')
+    point_total = db.Column(db.Integer, default = 0)
+    opponents = db.Column((db.String), default="")
+    dropped = db.Column(db.Boolean, default=False)
     pair_up_down = db.Column(db.Boolean, default = 0)
     bye = db.Column(db.Boolean, default='False')
 
