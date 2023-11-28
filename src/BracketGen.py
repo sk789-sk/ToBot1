@@ -71,6 +71,9 @@ def CreateMatches(tourney_id):
 
     return pairings
 
+
+
+
 def BiPartiteMatchMaking():
     #matchmaking by bipartite matching, break sets of players into 2 groups for player 1 and player 2
 
@@ -165,6 +168,74 @@ def add_Match_Result(match_id, loser_id):
         db.session.commit()
     return 
 
+def FinalizeResults(tournament_id):
+    with app.app_context():
+
+        entrants = Entrant.query.filter(Entrant.tournament_id==tournament_id).all()
+
+
+    entrant_dict = {}
+    for entrant in entrants:
+        entrant_dict[entrant.id] = entrant
+
+    print(entrant_dict)
+    print(entrant_dict[2].opponents)
+    print(len(entrant_dict[2].opponents))
+
+    #Determine SOS we should store calculated values in a hash to avoid recalculation since theres going to be many repeat values. 
+    #Win = 1, tie = 1/3 win, loss = 0 win. This also makes it so it weights someone with wins > ties i beleive
+    SOS_dict = {}
+
+    updated_entrants = []
+
+    for entrant in entrants:
+        wins_e,games_e = 0,0
+
+        print(list(entrant.opponents.split(',')))
+        for opponent in list(entrant.opponents.split(',')):
+            if opponent.isdigit():
+
+                if opponent in SOS_dict:
+                    wins_e += SOS_dict[opponent][0]
+                    games_e += SOS_dict[opponent][1]
+                else:
+
+                    #this is with the idea the entrants are stored as a dictionary instead of an array to access them. We already have all the entrants we dont want to get it again from the DB for no reason. 
+                    # print(type(opponent))
+                    # print(entrant_dict[2])
+
+                    games = len(entrant_dict[int(opponent)].opponents) #not accurate since this is a fkn string. 
+                    wins = (entrant_dict[int(opponent)].point_total)/games
+                    SOS_dict[int(opponent)] = (wins,games)
+                    wins_e += wins
+                    games_e += games
+            else:
+                continue
+
+        entrant.SOS = wins_e/games_e
+
+        updated_entrants.append(entrant)
+
+    with app.app_context():
+        db.session.add_all(updated_entrants)
+        db.session.commit()
+
+def CreateStandings(tournament_id):
+
+    with app.app_context():
+
+        ordered_entrants = Entrant.query.filter(Entrant.tournament_id==tournament_id).order_by(Entrant.point_total).order_by(Entrant.SOS).all()
+
+
+        print(ordered_entrants)
+
+
+        
+
+    
+
+
+
 # startTournament(1)
 
 ##Added Round 1 Sim Results
@@ -188,7 +259,9 @@ def add_Match_Result(match_id, loser_id):
 #Create Round 3 Pairings
 # CreateMatches(1)
 
-add_Match_Result(9,5)
-add_Match_Result(10,6)
-add_Match_Result(11,8)
-add_Match_Result(12,7)
+# add_Match_Result(9,5)
+# add_Match_Result(10,6)
+# add_Match_Result(11,8)
+# add_Match_Result(12,7)
+
+FinalizeResults(1)

@@ -66,6 +66,7 @@ class Entrant(db.Model, SerializerMixin):
     dropped = db.Column(db.Boolean, default=False)
     pair_up_down = db.Column(db.Boolean, default = 0)
     bye = db.Column(db.Boolean, default='False')
+    SOS = db.Column(db.Float)
 
     #Foreign Keys
     tournament_id = db.Column(db.Integer, db.ForeignKey('Tournaments.id'))

@@ -13,8 +13,11 @@ sqlalchemy-serializer = "*"
 flask-cors = "*"
 flask-migrate = "*"
 flask-bcrypt = "*"
+matplotlib = "*"
+"discord.py" = "*"
 
 [dev-packages]
+ipykernel = "*"
 
 [requires]
 python_version = "3.8"

@@ -1,0 +1,50 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+Table Entrant {
+  id PK
+  user_id FK
+  tournament_id FK
+  Point_total integer
+  opponents array
+  dropped boolean
+  pair_up_down boolean
+  bye boolean
+  SOS float
+  median integer
+}
+
+Table Users {
+  id integer [primary key]
+  username varchar
+  role varchar
+  created_at timestamp
+}
+
+Table Tournament {
+  id integer [primary key]
+  creator FK
+  title varchar
+  game varchar
+  format varchar
+  status varchar
+  created_at timestamp
+}
+
+Table Match{
+  id integer PK
+  result integer
+  round integer
+  tournament_id FK
+  player_1 FK
+  player_2 FK
+}
+
+
+
+
+Ref: "Match"."tournament_id" < "Tournament"."id"
+
+Ref: "Entrant"."user_id" < "Match"."player_1"
+
+Ref: "Match"."player_2" < "Entrant"."user_id"
