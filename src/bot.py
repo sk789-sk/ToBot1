@@ -63,6 +63,7 @@ async def ping(ctx):
 @client.command()
 async def RPS(ctx):
     val = rd.choice(['rock', 'paper', 'scissors'])    
+    print('test')
     await ctx.send(val)
 
 
@@ -72,4 +73,3 @@ async def RPS(ctx):
 
 client.run(os.getenv('Disc_Token'))
 
-# client.run('MTE3ODgxNTY3OTUwODUxNjkxNg.GlJC2j.xq6-XqZMrerCgosS-4Pemo0lzUHiPhW30TL0sY')
