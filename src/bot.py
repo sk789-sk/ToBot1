@@ -1,6 +1,7 @@
 import discord 
 from discord.ext import commands
 import random as rd
+import requests 
 import os
 from dotenv import load_dotenv
 
@@ -23,7 +24,7 @@ intents.message_content = True
 #Theres 2 ways to connect to discord here. client =  discord.Client is the websocket and has more flexibility.
 # bot= commands.Bot(prefix,intents) then using @bot.command/event is an extension of the Client class, seems like it just has some common use cases built in and is just easier to use then. 
 
-client = commands.Bot(command_prefix='$',intents=intents)
+client = commands.Bot(command_prefix='$',intents=intents ,case_insensitive=True)
 
 
 
@@ -63,12 +64,53 @@ async def ping(ctx):
 @client.command()
 async def RPS(ctx):
     val = rd.choice(['rock', 'paper', 'scissors'])    
-    print('test')
     await ctx.send(val)
 
+@client.command()
+async def copy(ctx, arg):
+    await ctx.send(arg)
 
 
+@client.command()
+async def join(ctx, t_id: int): #enter a tournament
+    print(ctx)
+    print(ctx.author)    
+    pass
 
+@client.command()
+async def view(ctx): #view tournament information
+    r = requests.get('http://127.0.0.1:5556/returnEntrants/1')
+    await ctx.send(r.text)
+    pass
+
+@client.command()
+async def drop(ctx): #drop from a tournament information
+    pass
+
+@client.command()
+async def create(ctx, name): #end tournament information
+
+    data = {
+        'name': name,
+        'game': 'YGO',
+        'format': 'Swiss',
+        'creator': str(ctx.author)
+    }
+
+    # data = {"name":name,"game":"YGO","format":"Swiss","creator":str(ctx.author)}
+
+    headers = {'Content-Type': 'application/json'}
+
+    r = requests.post('http://127.0.0.1:5556/Create', json=data)
+    
+    
+    print(r.status_code)
+
+    if r.ok:
+        response = f'Tournament Created Successfully'
+    await ctx.send(response)
+
+    pass
 
 
 client.run(os.getenv('Disc_Token'))

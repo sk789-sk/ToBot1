@@ -168,7 +168,11 @@ def add_Match_Result(match_id, loser_id):
         db.session.commit()
     return 
 
+
 def FinalizeResults(tournament_id):
+    #1. Set the tournament status to completed
+    #2. Create the Tiebreaker Calculations, SOS, Bucholz, H2H,
+
     with app.app_context():
 
         entrants = Entrant.query.filter(Entrant.tournament_id==tournament_id).all()

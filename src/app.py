@@ -54,7 +54,7 @@ def alter_Tournament_Entrant(t_id):
             print(new_Entrant)
 
             db.session.add(new_Entrant)
-            db.session.commit()
+            db.session.commit()  #This commit line is causing the issue. 
             
             print('created')
             response = make_response(jsonify(new_Entrant.to_dict()),200)
