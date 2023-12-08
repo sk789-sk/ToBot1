@@ -76,21 +76,14 @@ async def copy(ctx, arg):
 
 @client.command()
 async def join(ctx, t_id: int): #enter a tournament
-    #enter a tournament given a tournament id.
-    #if entered return user is already entered
-    #if success enter sucess
-    #if failure inform
-    #if tournament has started do not allow them to enter
+    #1. enter a tournament given a tournament id.
+    #2. If user already entered return feedback
+    #3. If tournament has started do not enter and feedback
+    #4. if failure inform
 
     data = {
-        'point_total' : 0,
-        'opponents' : "",
         'tournament_id' : t_id,
         'username': str(ctx.author),
-        'dropped' : None,
-        'pair_up_down' : None,
-        'bye' : None,
-        'SOS' : None,
         'discord_id': int(ctx.author.id)
     }
 
@@ -109,6 +102,33 @@ async def join(ctx, t_id: int): #enter a tournament
 
     await ctx.send(response)
 
+
+@client.command()
+async def drop(ctx, t_id:int): #drop from a tournament information
+    #if tournament is underway change player status to dropped
+    #if tournament has not started remove them from the entrants 
+    #delete an entrant from a tournament
+    #return a confirmation that the delete occured
+
+    data = {
+        'tournament_id' : t_id,
+        'discord_id' : int(ctx.author.id)
+    }
+
+    headers = {'Content-Type': 'application/json'}
+    r = requests.post(f'http://127.0.0.1:5556/Drop/{t_id}', json=data)
+
+    if r.ok:
+        response = f'{ctx.author} dropped sucessfully'
+    else:
+        if r.status_code == 403:
+            response = f'Entrants can no longer be modified'
+        else:
+            response = f'Error, please try again or check if registered'
+    
+    await ctx.send(response)
+
+
 @client.command()
 async def entrants(ctx): #view tournament information
     r = requests.get('http://127.0.0.1:5556/returnEntrants/1')
@@ -121,11 +141,6 @@ async def info(ctx, id:int):
     #return the Basic info, entrant count etc
     pass
 
-@client.command()
-async def drop(ctx): #drop from a tournament information
-    #delete an entrant from a tournament
-    #return a confirmation that the delete occured
-    pass
 
 @client.command()
 async def create(ctx, name): #create tournament information

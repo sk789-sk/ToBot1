@@ -41,29 +41,25 @@ def create():
 
     return response
 
-@app.route('/JoinTournament/<int:t_id>', methods = ['POST', 'DELETE'])
-def alter_Tournament_Entrant(t_id):
+@app.route('/JoinTournament/<int:t_id>', methods = ['POST'])
+def Join_Tournament(t_id):
 
     data = request.get_json()
-
     tournament_status = Tournament.query.filter(Tournament.id==t_id).first().status
-    print(tournament_status)
-
     entered_status = Entrant.query.filter(Entrant.tournament_id==t_id,Entrant.discord_id==data['discord_id']).first()
 
-    print(entered_status == True)
-
-    if tournament_status == 'Underway':
-        response = make_response({},403)
-        print('Tournament underway, can no longer enter')
-
-    elif entered_status:
-        response = make_response({}, 409)
-        print('User already entered')
-
-    else: 
-        if request.method == 'POST':
+    if request.method == 'POST':
         
+        if tournament_status == 'Underway':
+            response = make_response({},403)
+            print('Tournament underway, can no longer enter')
+
+        elif entered_status:
+            response = make_response({}, 409)
+            print('User already entered')
+
+        else:
+             
             try:
                 new_Entrant = Entrant(
                     tournament_id = t_id,
@@ -80,9 +76,6 @@ def alter_Tournament_Entrant(t_id):
                 db.session.add(new_Entrant)
                 db.session.commit()
 
-                print('created')
-                print(new_Entrant.point_total)
-
                 response = make_response(jsonify(new_Entrant.to_dict()),200)
 
             except SQLAlchemyError as e:
@@ -93,9 +86,48 @@ def alter_Tournament_Entrant(t_id):
             except ValueError as ve:
                     response = make_response({},400)
                     print(f'Error: {ve}')
-        
-        else:
+    
+    else:
+            #DELETE
             print('delete')
+
+    return response
+
+@app.route('/Drop/<int:t_id>', methods = ['POST'])
+def drop_entrant(t_id):
+     #1. If the tournament is underway change status to dropped
+     #2. If the tournament has not yet begun delete them
+     #3. If tournament is in other status, finalized etc do not allow edits
+     #3. Info given is the users discord_id
+     
+
+    data = request.get_json()
+    tournament_status = Tournament.query.filter(Tournament.id==t_id).first().status
+    entrant = Entrant.query.filter(Entrant.tournament_id==t_id,Entrant.discord_id==data['discord_id']).first_or_404()
+    
+    if tournament_status == 'Underway':
+        entrant.dropped = True
+        try:            
+            db.session.add(entrant)
+            db.session.commit()
+            response = make_response({},202)
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f'Error {e} occured')
+            response = make_response({'error': 'Failed to drop'}, 500)
+
+    elif tournament_status == 'Initialized':
+        try:
+            db.session.delete(entrant)
+            db.session.commit()
+            response = make_response({},204)
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f'Error {e} occured')
+            response = make_response({'error': 'Failed to delete'}, 500)
+    else:
+        response = make_response({'Error':'Cannot Modify'},403) #cannot modify resource anymore
+ 
 
     return response
 
