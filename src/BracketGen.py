@@ -240,7 +240,7 @@ def CreateStandings(tournament_id):
 
 
 
-# startTournament(1)
+startTournament(5)
 
 ##Added Round 1 Sim Results
 
@@ -268,4 +268,4 @@ def CreateStandings(tournament_id):
 # add_Match_Result(11,8)
 # add_Match_Result(12,7)
 
-FinalizeResults(1)
+# FinalizeResults(1)

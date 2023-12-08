@@ -1,5 +1,6 @@
 from models import *
 from flask import Flask, make_response, jsonify, request, session
+from sqlalchemy.exc import SQLAlchemyError
 import os
 
 # Local imports
@@ -45,24 +46,56 @@ def alter_Tournament_Entrant(t_id):
 
     data = request.get_json()
 
-    if request.method == 'POST':
-        try:
-            new_Entrant = Entrant(
-                tournament_id = t_id,
-                username = data['username']
-            )
-            print(new_Entrant)
+    tournament_status = Tournament.query.filter(Tournament.id==t_id).first().status
+    print(tournament_status)
 
-            db.session.add(new_Entrant)
-            db.session.commit()  #This commit line is causing the issue. 
-            
-            print('created')
-            response = make_response(jsonify(new_Entrant.to_dict()),200)
-        except:
-            response = make_response({},200)
-            print('failed')
-    else:
-        print('delete')
+    entered_status = Entrant.query.filter(Entrant.tournament_id==t_id,Entrant.discord_id==data['discord_id']).first()
+
+    print(entered_status == True)
+
+    if tournament_status == 'Underway':
+        response = make_response({},403)
+        print('Tournament underway, can no longer enter')
+
+    elif entered_status:
+        response = make_response({}, 409)
+        print('User already entered')
+
+    else: 
+        if request.method == 'POST':
+        
+            try:
+                new_Entrant = Entrant(
+                    tournament_id = t_id,
+                    point_total = 0,
+                    opponents = "",
+                    pair_up_down = None,
+                    bye = None,
+                    SOS = None,
+                    dropped = None,
+                    username = data['username'],
+                    discord_id = data['discord_id']
+                )
+
+                db.session.add(new_Entrant)
+                db.session.commit()
+
+                print('created')
+                print(new_Entrant.point_total)
+
+                response = make_response(jsonify(new_Entrant.to_dict()),200)
+
+            except SQLAlchemyError as e:
+                    db.session.rollback()
+                    print(f'Error {e} occured')
+                    response = make_response({'error': 'Failed to create entrant'}, 500)
+                    
+            except ValueError as ve:
+                    response = make_response({},400)
+                    print(f'Error: {ve}')
+        
+        else:
+            print('delete')
 
     return response
 

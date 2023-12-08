@@ -63,8 +63,11 @@ async def ping(ctx):
 
 @client.command()
 async def RPS(ctx):
+    #return an rock-paper-scissors value for 
+
     val = rd.choice(['rock', 'paper', 'scissors'])    
     await ctx.send(val)
+
 
 @client.command()
 async def copy(ctx, arg):
@@ -73,44 +76,81 @@ async def copy(ctx, arg):
 
 @client.command()
 async def join(ctx, t_id: int): #enter a tournament
-    print(ctx)
-    print(ctx.author)    
-    pass
+    #enter a tournament given a tournament id.
+    #if entered return user is already entered
+    #if success enter sucess
+    #if failure inform
+    #if tournament has started do not allow them to enter
+
+    data = {
+        'point_total' : 0,
+        'opponents' : "",
+        'tournament_id' : t_id,
+        'username': str(ctx.author),
+        'dropped' : None,
+        'pair_up_down' : None,
+        'bye' : None,
+        'SOS' : None,
+        'discord_id': int(ctx.author.id)
+    }
+
+    headers = {'Content-Type': 'application/json'}
+    r = requests.post(f'http://127.0.0.1:5556/JoinTournament/{t_id}', json=data)
+
+    if r.ok:
+        response = f'{ctx.author} registered successfully'
+    else:
+        if r.status_code == 403: 
+            response = f'Tournament is underway, unable to join'
+        elif r.status_code == 409:
+            response = f'{ctx.author} is already registered'
+        else:
+            response =f'Error, please try again'
+
+    await ctx.send(response)
 
 @client.command()
-async def view(ctx): #view tournament information
+async def entrants(ctx): #view tournament information
     r = requests.get('http://127.0.0.1:5556/returnEntrants/1')
     await ctx.send(r.text)
     pass
 
 @client.command()
-async def drop(ctx): #drop from a tournament information
+async def info(ctx, id:int):
+    #request the tournament info from the API
+    #return the Basic info, entrant count etc
     pass
 
 @client.command()
-async def create(ctx, name): #end tournament information
+async def drop(ctx): #drop from a tournament information
+    #delete an entrant from a tournament
+    #return a confirmation that the delete occured
+    pass
+
+@client.command()
+async def create(ctx, name): #create tournament information
+    #Create a Tournament, add in additional parameters, figure out how to make it as a dropdown step by step.
 
     data = {
         'name': name,
         'game': 'YGO',
         'format': 'Swiss',
-        'creator': str(ctx.author)
+        'creator': int(ctx.author.id)
     }
 
-    # data = {"name":name,"game":"YGO","format":"Swiss","creator":str(ctx.author)}
-
     headers = {'Content-Type': 'application/json'}
-
     r = requests.post('http://127.0.0.1:5556/Create', json=data)
-    
     
     print(r.status_code)
 
     if r.ok:
         response = f'Tournament Created Successfully'
+    else:
+        response = f'Failed to create'
+    
     await ctx.send(response)
 
-    pass
+    
 
 
 client.run(os.getenv('Disc_Token'))

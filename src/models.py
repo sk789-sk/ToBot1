@@ -12,6 +12,7 @@ class User(db.Model, SerializerMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String)
+    discord_id = db.Column(db.Integer)
 
     def __repr__(self):
         return f'User is ${self.username}'
@@ -61,13 +62,20 @@ class Entrant(db.Model, SerializerMixin):
     __tablename__ = 'Entrants'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String)
-    point_total = db.Column(db.Integer, default = 0)
+    discord_id = db.Column(db.Integer)
+    point_total = db.Column(db.Integer)
     opponents = db.Column((db.String), default="")
     dropped = db.Column(db.Boolean, default=False)
     pair_up_down = db.Column(db.Boolean, default = 0)
-    bye = db.Column(db.Boolean, default='False')
+    bye = db.Column(db.Boolean, default=False)
     SOS = db.Column(db.Float)
 
     #Foreign Keys
     tournament_id = db.Column(db.Integer, db.ForeignKey('Tournaments.id'))
+
+    @validates('point_total')
+    def validate_points(self,key,point_total):
+        if point_total >= 0:
+            return point_total
+        raise ValueError("Point total must be greater than 0")
 
