@@ -7,6 +7,7 @@ import os
 
 from config import app, db
 from models import Match , Entrant , Tournament
+from BracketGen import startTournament
 
 
 
@@ -129,6 +130,36 @@ def drop_entrant(t_id):
         response = make_response({'Error':'Cannot Modify'},403) #cannot modify resource anymore
  
 
+    return response
+
+
+@app.route('/start/<int:t_id>')
+def start_tournament(t_id):
+
+    t = Tournament.query.filter(Tournament.id==t_id).first()
+
+    if t.status == 'Initialized':
+
+        t.status = 'Underway'
+
+        try:
+            db.session.add(t)
+            db.session.commit()
+
+            matches = startTournament(t_id)     
+            
+            #I think these matches are not bound to session and is causing error
+            #i think it was needing db access to turn the matches into something that is jsonifyiable and there was a desync between the sessions. I have the bracket gen function returning them in jsonifyable format now.
+
+            response = make_response(jsonify(matches),200)
+
+        except SQLAlchemyError as e:
+            print('we here?')
+            db.session.rollback()
+            print(f'Error {e} has occured')
+            response = make_response({'error': 'Failed to start'}, 500)
+    else:
+        response = make_response({},403) #tournament is underway or completed
     return response
 
 @app.route('/Generate_Matches')

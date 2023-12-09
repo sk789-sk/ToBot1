@@ -2,6 +2,9 @@ import networkx as nx
 from itertools import combinations
 import matplotlib.pyplot as plt
 
+from flask import Flask, make_response
+from sqlalchemy.exc import SQLAlchemyError
+
 
 #local imports
 
@@ -88,6 +91,8 @@ def CreateTournament():
 def startTournament(tourney_id):
     #Start the tournament which would then create the initial matches.
     #We pass in a list of entrants and create the initial graph
+    #would it be better to just have this only make the matches and leave all database related things to be passed into it. Instead of giving it an ID instead we would pass it a graph 
+
     tourney_graph = nx.Graph() 
     
     #1. First get the entrants in the tournament
@@ -122,22 +127,32 @@ def startTournament(tourney_id):
         new_Match = Match(
             tournament = tourney_id,
             round = 1,
-            player_1 = pair[0].id,
-            player_2 = pair[1].id,
+            player_1_id = pair[0].id,
+            player_2_id = pair[1].id,
         )
         matches.append(new_Match)
+    match_list = []
 
     with app.app_context():
-        db.session.add_all(matches)
-        db.session.commit()
 
+        try:
+            db.session.add_all(matches)
+            db.session.commit()
+
+            for match in matches:
+                match_list.append(match.to_dict())
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f'Error {e} has occured')
+            response = make_response({'error': 'Failed to create Matches'}, 500)
 
     #5. Create a graph of tournament state. This will be the graph used for subsequent matchmaking once results matter. 
         #pairings that have already been set should now be set to weights of - inf so they cannot occur again since we are using max weight matching. 
 
 
 
-    return matches
+    return match_list
 
 def add_Match_Result(match_id, loser_id):
     #update match result, update player point total, update edge weight for games already done
@@ -240,7 +255,7 @@ def CreateStandings(tournament_id):
 
 
 
-startTournament(5)
+# startTournament(5)
 
 ##Added Round 1 Sim Results
 

@@ -27,3 +27,16 @@ INSERT INTO Tournaments (name,game,format,creator) VALUES ('Test2','YGO','Swiss'
 DELETE From Matches WHERE id >= 5;
 
 DELETE FROM Entrants;
+
+
+INSERT INTO Entrants (username, point_total, tournament_id,opponents,discord_id) VALUES ('WZ', 0, 1,"",1);
+INSERT INTO Entrants (username, point_total, tournament_id,opponents,discord_id) VALUES ('Firdaus', 0, 1,"",2);
+INSERT INTO Entrants (username, point_total, tournament_id,opponents,discord_id) VALUES ('shamu', 0, 1,"",3);
+INSERT INTO Entrants (username, point_total, tournament_id,opponents,discord_id) VALUES ('trapmoneys', 0, 1,"",4);
+INSERT INTO Entrants (username, point_total, tournament_id,opponents,discord_id) VALUES ('inzy', 0, 1,"",5);
+
+DELETE FROM Matches where tournament =2;
+
+UPDATE Tournaments
+SET status = 'Initialized' 
+WHERE id=2;

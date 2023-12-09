@@ -48,10 +48,16 @@ class Match(db.Model, SerializerMixin):
 
     #foreign Keys
     tournament = db.Column(db.Integer, db.ForeignKey('Tournaments.id'))
-    player_1 = db.Column(db.Integer, db.ForeignKey('Users.id'))
-    player_2 = db.Column(db.Integer, db.ForeignKey('Users.id'))
+    player_1_id = db.Column(db.Integer, db.ForeignKey('Entrants.id'))
+    player_2_id = db.Column(db.Integer, db.ForeignKey('Entrants.id'))
 
     #relationships
+
+    player_1 = db.relationship('Entrant', foreign_keys = [player_1_id],) #back_populates='matches_as_P1',
+    player_2 = db.relationship('Entrant', foreign_keys = [player_2_id],) #back_populates='matches_as_P2',
+
+
+
     #validations
     #serialization rules
 
@@ -72,6 +78,11 @@ class Entrant(db.Model, SerializerMixin):
 
     #Foreign Keys
     tournament_id = db.Column(db.Integer, db.ForeignKey('Tournaments.id'))
+
+    #relationships
+
+    # matches_as_P1 = db.relationship('Match', backref = 'player_1', foreign_keys='Match.player_1_id',)
+    # matches_as_P2 = db.relationship('Match', backref = 'player_2', foreign_keys='Match.player_2_id',)
 
     @validates('point_total')
     def validate_points(self,key,point_total):
