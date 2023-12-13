@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 
 from flask import Flask, make_response
 from sqlalchemy.exc import SQLAlchemyError
-
+from sqlalchemy.orm import aliased
+from sqlalchemy import or_
 
 #local imports
 
@@ -19,11 +20,8 @@ def CreateMatches(tourney_id):
     #1. Get all the entrants 
 
     with app.app_context():
-        entrants = Entrant.query.filter(Entrant.tournament_id==tourney_id).all() #Entrant.dropped != True
-
+        entrants = Entrant.query.filter(Entrant.tournament_id==tourney_id,Entrant.dropped != True).all() 
     #2.Create the graph for creating matches. 
-
-    print(entrants)
 
     G = nx.Graph()
     G.add_nodes_from(entrants)
@@ -35,8 +33,6 @@ def CreateMatches(tourney_id):
         #We would recreate the graph when a user drops, aka remove the vertex and all edges involved with it(only for matchmaking).
         # 
         #  
-
-        print(pair)
 
         p1_opponents = list(pair[0].opponents)
 
@@ -53,8 +49,6 @@ def CreateMatches(tourney_id):
 
     pairings = (nx.max_weight_matching(G,maxcardinality=True))
 
-    print(pairings)
-
     #Add new matches to the database
 
     matches = []
@@ -63,8 +57,8 @@ def CreateMatches(tourney_id):
         new_Match = Match(
             tournament = tourney_id,
             round = 1,
-            player_1 = pair[0].id,
-            player_2 = pair[1].id,
+            player_1_id = pair[0].id,
+            player_2_id = pair[1].id,
         )
         matches.append(new_Match)
 
@@ -77,15 +71,103 @@ def CreateMatches(tourney_id):
 
 
 
-def BiPartiteMatchMaking():
+def BiPartiteMatchMaking(tourney_id):
     #matchmaking by bipartite matching, break sets of players into 2 groups for player 1 and player 2
+    #Same logic as above to 
 
-    pass
+    with app.app_context():
+        entrants = Entrant.query.filter(Entrant.tournament_id==tourney_id,Entrant.dropped !=True).all() #Entrant.dropped != True
+        Tourney_info = Tournament.query.filter(Tournament.id == tourney_id).first()
+        current_r = Tourney_info.current_round
+        
+        Tourney_info.current_round = current_r+1
 
-def CreateTournament():
-    #Initialize a new tournament in the database. (This is done in app.py now instead)
-    pass
+    #2.Create the graph for creating matches. 
 
+    matching_graph = nx.Graph()
+
+    #split entrants into 2 groups
+
+    A_set = entrants[len(entrants)//2:]
+    B_set = entrants[:len(entrants)//2]
+
+    matching_graph.add_nodes_from(A_set, bipartite = 0)
+    matching_graph.add_nodes_from(B_set, bipartate = 1)
+
+    #Add weights between all A and B 
+
+    for entrant_a in A_set:
+        for entrant_b in B_set:
+            #If A and B have played each other set the weight to -inf, 
+            #otherwise set the weight to be sum of the point totals 
+            #add the edge
+
+            if entrant_a.id in list(entrant_b.opponents):
+                print(list(entrant_b.opponents))
+                e_weight = -10000
+            
+            else:
+                e_weight = entrant_a.point_total + entrant_b.point_total
+
+
+            matching_graph.add_edge(entrant_a, entrant_b, weight = e_weight)
+    #find the matching
+
+    pairings = nx.max_weight_matching(matching_graph, maxcardinality=True)
+    paired_entrants = set()
+
+    matches = []    
+
+
+    #Create Matches
+    for pairing in pairings:
+        #each pairing is a tuple which is hashable so im guessing the set will have tuples instead of individuals, 
+        paired_entrants.update(pairing) 
+        new_Match = Match(
+            tournament = tourney_id,
+            round = current_r+1,
+            player_1_id = pairing[0].id,
+            player_2_id = pairing[1].id,
+        )
+        matches.append(new_Match)
+
+    #Create Match for unpaired if necessary
+    if len(entrants)%2 !=0: 
+        unmatched = set(entrants).difference(paired_entrants) 
+        val = unmatched.pop()
+
+        new_Match = Match(
+            tournament = tourney_id,
+            round = current_r+1,
+            player_1_id = val.id,
+            player_2_id = None,
+            result = val.id
+        )
+
+        #Update the entrant to also have bye listed in their name.
+
+        matches.append(new_Match)
+    
+    # for pair in pairings:
+    #     new_Match = Match(
+    #         tournament = tourney_id,
+    #         round = 1,
+    #         player_1_id = pair[0].id,
+    #         player_2_id = pair[1].id,
+    #     )
+    #     matches.append(new_Match)
+    
+    #update database
+    with app.app_context():
+        db.session.add_all(matches)
+        db.session.add(Tourney_info)
+        db.session.commit()
+
+    #return matches to bot 
+
+    return pairings
+
+# BiPartiteMatchMaking(1)
 
 
 def startTournament(tourney_id):
@@ -98,6 +180,9 @@ def startTournament(tourney_id):
     #1. First get the entrants in the tournament
     with app.app_context():
         entrants = Entrant.query.filter(Entrant.tournament_id==tourney_id).all()
+        tourney_info = Tournament.query.filter(Tournament.id == tourney_id).first()
+
+
     
     #2. Add the entrants to the tournament
     
@@ -115,14 +200,13 @@ def startTournament(tourney_id):
 
     pairings = (nx.maximal_matching(tourney_graph))    
 
-    # nx.draw(tourney_graph, with_labels=True, font_weight='bold', node_color='skyblue', font_color='black', node_size=1000)
-    # plt.show()
-
-    print(pairings)
-
     #4. We have the pairings and now we need to turn them into match objects to store in the database. Extract the information from the Entrant
 
     matches = []
+    match_list = []
+
+    paired_entrants = set()
+
     for pair in pairings:
         new_Match = Match(
             tournament = tourney_id,
@@ -131,31 +215,59 @@ def startTournament(tourney_id):
             player_2_id = pair[1].id,
         )
         matches.append(new_Match)
-    match_list = []
+        paired_entrants.update(pair)
+
+        # print(new_Match)
+
+    if len(entrants)%2 !=0:
+
+        print(set(entrants))
+        print(paired_entrants)
+
+        unmatched = set(entrants).difference(paired_entrants)
+        
+        
+        print(unmatched)
+
+        val = unmatched.pop()
+
+        new_Match = Match(
+            tournament = tourney_id,
+            round = 1,
+            player_1_id = val.id,
+            player_2_id = None,
+            result = val.id
+        )
+        matches.append(new_Match)
+    
+    tourney_info.current_round = 1
 
     with app.app_context():
 
         try:
             db.session.add_all(matches)
+            db.session.add(tourney_info)
             db.session.commit()
+            
 
             for match in matches:
                 match_list.append(match.to_dict())
+
 
         except SQLAlchemyError as e:
             db.session.rollback()
             print(f'Error {e} has occured')
             response = make_response({'error': 'Failed to create Matches'}, 500)
 
-    #5. Create a graph of tournament state. This will be the graph used for subsequent matchmaking once results matter. 
-        #pairings that have already been set should now be set to weights of - inf so they cannot occur again since we are using max weight matching. 
-
-
+        except ValueError as ve:
+            print(f'Error {ve} has occured')
+            
 
     return match_list
 
-def add_Match_Result(match_id, loser_id):
+def add_Match_Result(match_id, loser_id): #NOT USED
     #update match result, update player point total, update edge weight for games already done
+
     with app.app_context():
         match = Match.query.filter(Match.id==match_id).first()
         entrant_1 = Entrant.query.filter(match.player_1==Entrant.id).first()
@@ -250,37 +362,27 @@ def CreateStandings(tournament_id):
 
 
         
-
-    
-
+def testouter(t_id,disc_id):
 
 
-# startTournament(5)
 
-##Added Round 1 Sim Results
+    with app.app_context():
 
-# add_Match_Result(1,5)
-# add_Match_Result(2,4)
-# add_Match_Result(3,7)
-# add_Match_Result(4,1)
+        entrant_1_alias = aliased(Entrant)
+        entrant_2_alias = aliased(Entrant)
 
-##Create Round 2 Pairings
+        t_round = Tournament.query.filter(Tournament.id == t_id).first().current_round
 
-# CreateMatches(1)
+        print(t_round)
 
-##Add Round 3 Sim Results
+        match = db.session.query(Match).outerjoin(entrant_1_alias, Match.player_1_id==entrant_1_alias.id ).outerjoin(entrant_2_alias, Match.player_2_id==entrant_2_alias.id).filter(or_(entrant_1_alias.discord_id==disc_id,entrant_2_alias.discord_id==disc_id),Match.round==t_round).all()
 
-# add_Match_Result(5,7)
-# add_Match_Result(6,4)
-# add_Match_Result(7,8)
-# add_Match_Result(8,3)
+        #, entrant_1_alias, entrant_2_alias 
+            
+        print(match)
 
-#Create Round 3 Pairings
-# CreateMatches(1)
 
-# add_Match_Result(9,5)
-# add_Match_Result(10,6)
-# add_Match_Result(11,8)
-# add_Match_Result(12,7)
+        # print(match[0].player_1_id.discord_id)
+
 
 # FinalizeResults(1)

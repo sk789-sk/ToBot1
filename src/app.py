@@ -1,6 +1,8 @@
 from models import *
 from flask import Flask, make_response, jsonify, request, session
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import aliased
+from sqlalchemy import or_
 import os
 
 # Local imports
@@ -143,11 +145,11 @@ def start_tournament(t_id):
         t.status = 'Underway'
 
         try:
+            matches = startTournament(t_id)   
+            
             db.session.add(t)
             db.session.commit()
-
-            matches = startTournament(t_id)     
-            
+              
             #I think these matches are not bound to session and is causing error
             #i think it was needing db access to turn the matches into something that is jsonifyiable and there was a desync between the sessions. I have the bracket gen function returning them in jsonifyable format now.
 
@@ -160,6 +162,66 @@ def start_tournament(t_id):
             response = make_response({'error': 'Failed to start'}, 500)
     else:
         response = make_response({},403) #tournament is underway or completed
+    
+    return response
+
+@app.route('/UpdateMatch' , methods = ['PATCH'])
+def updateMatch():
+    
+    #slower option would be to query the entrant_id from the Entrant list
+    #feel like there should be a way to do this in 1 query utilizing outerjoin and relationships that i need to go over.
+
+
+    data = request.get_json() #I am given the tournament id and the discord_id here
+
+    entrant_1_alias = aliased(Entrant)
+    entrant_2_alias = aliased(Entrant)
+
+    t_round = Tournament.query.filter(Tournament.id == data['tournament_id']).first().current_round
+
+    match = db.session.query(Match).outerjoin(entrant_1_alias, Match.player_1_id==entrant_1_alias.id ).outerjoin(entrant_2_alias, Match.player_2_id==entrant_2_alias.id).filter(or_(entrant_1_alias.discord_id==data['discord_id'],entrant_2_alias.discord_id==data['discord_id']),Match.round==t_round).first()
+
+
+    if match:
+        #we have a match now lets update the match results. We pass the ID of the 
+        if match.result == None:
+
+            entrant_1 = Entrant.query.filter(match.player_1_id==Entrant.id).first()
+            entrant_2 = Entrant.query.filter(match.player_2_id==Entrant.id).first()
+
+            #this should be a list for when it goes to postgres
+
+            entrant_2.opponents += f"{entrant_1.id},"
+            entrant_1.opponents += f"{entrant_2.id},"
+
+
+            #2 cases player_1 loss or player_2
+            if match.player_1.discord_id == data['discord_id']: # player 1 has lost
+                match.result = match.player_2_id #update match result
+                entrant_2.point_total +=3
+
+            else: #player 2 has lost
+                match.result = match.player_1_id
+                entrant_1.point_total +=3
+
+            try:
+                db.session.add_all([match,entrant_1,entrant_2])
+                db.session.commit()
+                
+                response = make_response({},204)
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                print(f'Error {e} has occured')
+                response = make_response({'error': 'Server Error failed to update'},304)
+            except ValueError as ve:
+                db.session.rollback
+                print(f'Error {ve} has occured')
+                response = make_response({'Error':'Bad Data'},422)
+        else:
+            response = make_response({'Error':'Already Reported'},409)
+    else:
+        response = make_response({'Error': 'Player is not in an active match'},400)
+
     return response
 
 @app.route('/Generate_Matches')

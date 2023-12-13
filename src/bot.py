@@ -55,7 +55,7 @@ async def on_message(message):
     #Ok so this where the onmessage bit would occur. We define the messages and then what the
     #/enter, /createTournament, /createPairings, /Finalize etc., /endTourney  
 
- 
+ #TEST commands
 
 @client.command()
 async def ping(ctx):
@@ -73,6 +73,10 @@ async def RPS(ctx):
 async def copy(ctx, arg):
     await ctx.send(arg)
 
+
+
+
+#Tournament Commands
 
 @client.command()
 async def create(ctx, name): #create tournament information
@@ -154,10 +158,6 @@ async def drop(ctx, t_id:int): #drop from a tournament information
 
 
 @client.command()
-async def message(ctx):
-    await ctx.author.send('hello')
-
-@client.command()
 async def start(ctx, t_id:int):
     #start a tournament
     #Send a reqeust to the server to start the tournament
@@ -167,38 +167,133 @@ async def start(ctx, t_id:int):
     r = requests.get(f'http://127.0.0.1:5556/start/{t_id}')
 
     #Ok we get back a list of tournaments
-    data = r.json()
+    if r.ok:
 
-    message = "Pairings for the tournament: \n"
+        data = r.json()
 
-    for match in data: 
-        # print(match)
-        P1 = match['player_1']['discord_id']
-        P2 = match['player_2']['discord_id']
+        message = "Pairings for the tournament: \n"
 
+        for match in data: 
+            print(match)
 
-        user_1 = await client.fetch_user(P1)
-        user_2 = await client.fetch_user(P2) #returns a class discord.User
-        
-        m1 = f'Your opponent is {user_2.name}'
-        m2 = f'Your opponent is {user_1.name}'
-
-        
-        await user_1.send(m1)
-        await user_2.send(m2)
-
-        await ctx.send(f"{user_1.mention} vs. {user_2.mention}")
-
-        message += f'\n {user_1.mention} vs. {user_2.mention}'
-
-        print(message)
-
-    await ctx.send('Tournament Started, Pairings Generated')
-  
-    await ctx.send(message)
+            print('line break')
 
 
+            print(match['player_1'])
 
+            P1 = match['player_1']['discord_id']
+            P2 = match['player_2']['discord_id']
+
+
+            user_1 = await client.fetch_user(P1)
+            user_2 = await client.fetch_user(P2) #returns a class discord.User
+            
+            m1 = f'Your opponent is {user_2.name}'
+            m2 = f'Your opponent is {user_1.name}'
+
+            
+            await user_1.send(m1)
+            await user_2.send(m2)
+
+            message += f'\n {user_1.mention} vs. {user_2.mention}'
+
+            print(message)
+
+        await ctx.send('Tournament Started, Pairings Generated')
+    
+        await ctx.send(message)
+    else:
+
+        await ctx.send('ERROR')
+        "Tournament is already underway or some error creating matches provide feedback"
+
+@client.command()
+async def loss(ctx, t_id): #report a loss,
+    #I have a user id
+#     We have a user use the /command
+
+# /command tourney id, in the case of multiple tournaments
+
+# From that we have the context which gives me the users_id. 
+# From the users_id we need to extract which match they are playing.
+
+# SQL to search for the Match where Entrant(join)discord_id matches the the id we get back from the bot and the tournament id.
+
+# From that we have the match id and the entrant id.
+ 
+# From there we can use the match_id one that we have from before. 
+
+    data = {
+        'tournament_id' : t_id,
+        'discord_id' : int(ctx.author.id)
+    }
+
+    headers = {'Content-Type': 'application/json'}
+    r = requests.patch(f'http://127.0.0.1:5556/UpdateMatch', json=data)
+
+    if r.ok:
+        response = f'{ctx.author} loss reported sucessfully'
+    else:
+        if r.status_code == 400:
+            response = f'{ctx.author} is not in an active match for the tournament'
+        elif r.status_code == 409:
+            response = f'Match Result has already been reported'
+        else:
+            response = f'Error, please try again'
+    
+    await ctx.send(response)
+
+@client.command()
+async def tie(ctx, t_id):
+    pass
+
+@client.command()
+async def next_round(ctx, t_id):
+    #Create the pairings for the next round. 
+
+    #Send a request to the server to get the next round.
+    #Server will
+        # Verify that all matches are complete for the previous round.
+        #If all matches are done we 
+        # - create the pairings for the next round
+        # - Update tournament status to the new round
+        # - Post the pairings to the database
+        # - Return pairings to the bot
+    #Bot will then
+    # - Message Entrants with their opponent. 
+    # - Post the pairings in channel by @'s
+    pass
+
+@client.command()
+async def end(ctx, t_id):
+    #Finish the tournament 
+
+    #Send a request to the server to end the tournament
+    #Server will
+        #Verify that all the matches are completed
+        #Change the tournament staus to finalized. 
+        #Calculate all SOS and other tiebreaker metrics
+        #Send feedback the bot that it has been calculated
+    #Bot
+        #Message that the tournament is now concluded.
+        #Display the standings maybe*
+    pass
+
+@client.command()
+async def standing(ctx, t_id:int): #optional top N people display top N
+
+    #Display standings of the tournament. If the tournament is ongoing it sorts by point value, If tournament is concluded then it sorts with tiebreaker metrics as well. 
+
+    #Send a request to the server for standings information 
+    #Request may include tiebreaker criteria, default to SOS(Matched komani's tiebreaker method ) or bucholz
+    #Server will:
+        #Send back an order list of standing based on the criteria
+    #Bot will
+        #Display the standings in channel
+
+    pass 
+
+#QOL commands
 
 @client.command()
 async def entrants(ctx): #view tournament information
@@ -206,12 +301,22 @@ async def entrants(ctx): #view tournament information
     
     await ctx.send(r.text)
 
+@client.command()
+async def info(ctx, t_id:int):
+    #request the tournament info from the API
+    #return the Basic info, entrant count, status, etc
+    pass
 
 @client.command()
-async def info(ctx, id:int):
-    #request the tournament info from the API
-    #return the Basic info, entrant count etc
+async def waiting(ctx, t_id:int):
+    #request the matches that are still ongoing
+    #Server will:
+    #   - Return all matches in the current tournament and round that have null result, so no loss reported.
+    #Bot will:
+    #   -display these matches in the same format that used to initially display the matches. This will not mention. 
     pass
+
+
 
 
 

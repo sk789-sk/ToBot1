@@ -28,6 +28,7 @@ DELETE From Matches WHERE id >= 5;
 
 DELETE FROM Entrants;
 
+DELETE FROM Matches;
 
 INSERT INTO Entrants (username, point_total, tournament_id,opponents,discord_id) VALUES ('WZ', 0, 1,"",1);
 INSERT INTO Entrants (username, point_total, tournament_id,opponents,discord_id) VALUES ('Firdaus', 0, 1,"",2);
@@ -37,6 +38,12 @@ INSERT INTO Entrants (username, point_total, tournament_id,opponents,discord_id)
 
 DELETE FROM Matches where tournament =2;
 
+DELETE FROM Matches where tournament =2 AND result ISNULL;
+
 UPDATE Tournaments
 SET status = 'Initialized' 
 WHERE id=2;
+
+UPDATE Entrants 
+SET dropped = false
+WHERE id <=5;

@@ -26,6 +26,7 @@ class Tournament(db.Model, SerializerMixin):
     format = db.Column(db.Integer) #This is to indicate tournamnet format, DE, Swiss, ladder etc
     created_at = db.Column(db.DateTime(timezone=True), default= db.func.now())
     status = db.Column(db.String) #Not yet started, in progress, completed
+    current_round = db.Column(db.Integer, default = 0)
 
     #ForeignKeys
     creator = db.Column(db.Integer, db.ForeignKey('Users.id'))
