@@ -1,5 +1,6 @@
 import networkx as nx   
 from itertools import combinations
+from collections import defaultdict
 import matplotlib.pyplot as plt
 
 from flask import Flask, make_response
@@ -293,37 +294,6 @@ def startTournament(tourney_id):
 
     return match_list
 
-def add_Match_Result(match_id, loser_id): #NOT USED
-    #update match result, update player point total, update edge weight for games already done
-
-    with app.app_context():
-        match = Match.query.filter(Match.id==match_id).first()
-        entrant_1 = Entrant.query.filter(match.player_1==Entrant.id).first()
-        entrant_2 = Entrant.query.filter(match.player_2==Entrant.id).first()
-
-        entrant_2.opponents += f"{entrant_1.id},"
-        entrant_1.opponents += f"{entrant_2.id},"
-        
-    if loser_id == match.player_1:
-        match.result = match.player_2
-        entrant_2.point_total +=3
-
-    elif loser_id == match.player_2:
-        match.result = match.player_1
-        entrant_1.point_total +=3
-
-    else:
-        match.result = 0 
-        entrant_1.point_total +=1
-        entrant_2.point_total +=1
-    
-    with app.app_context():
-        # db.session.add(match)
-        db.session.add_all([match,entrant_1,entrant_2])
-        db.session.commit()
-    return 
-
-
 def FinalizeResults(tournament_id):
     #1. Set the tournament status to completed
     #2. Create the Tiebreaker Calculations, SOS, Bucholz, H2H,
@@ -331,53 +301,60 @@ def FinalizeResults(tournament_id):
     with app.app_context():
 
         entrants = Entrant.query.filter(Entrant.tournament_id==tournament_id).all()
-
+        tournament = Tournament.query.filter(Tournament.id == tournament_id).first()
+        matches = Match.query.filter(Match.tournament==tournament_id).all()
+    
+    tournament.status = 'Finalized'
 
     entrant_dict = {}
+
     for entrant in entrants:
         entrant_dict[entrant.id] = entrant
+    
+    SOS_dict = defaultdict(lambda: [0,0])   #{ id: [win, tie] }
 
-    print(entrant_dict)
-    print(entrant_dict[2].opponents)
-    print(len(entrant_dict[2].opponents))
-
-    #Determine SOS we should store calculated values in a hash to avoid recalculation since theres going to be many repeat values. 
-    #Win = 1, tie = 1/3 win, loss = 0 win. This also makes it so it weights someone with wins > ties i beleive
-    SOS_dict = {}
-
-    updated_entrants = []
-
-    for entrant in entrants:
-        wins_e,games_e = 0,0
-
-        print(list(entrant.opponents.split(',')))
-        for opponent in list(entrant.opponents.split(',')):
-            if opponent.isdigit():
-
-                if opponent in SOS_dict:
-                    wins_e += SOS_dict[opponent][0]
-                    games_e += SOS_dict[opponent][1]
-                else:
-
-                    #this is with the idea the entrants are stored as a dictionary instead of an array to access them. We already have all the entrants we dont want to get it again from the DB for no reason. 
-                    # print(type(opponent))
-                    # print(entrant_dict[2])
-
-                    games = len(entrant_dict[int(opponent)].opponents) #not accurate since this is a fkn string. 
-                    wins = (entrant_dict[int(opponent)].point_total)/games
-                    SOS_dict[int(opponent)] = (wins,games)
-                    wins_e += wins
-                    games_e += games
+    for match in matches: #We go over each match and add the results to my SOS_dict. Question is do byes count as wins for SOS I personally think no. 
+        if match.player_2_id == None: #This would be a match where a bye was given
+            continue
+        else:
+            if match.result !=0: #0 indicates a tie any other value is the id of the winner
+                SOS_dict[match.result][0] +=1  
+                # SOS_dict[match.result][2] +=1
+                # SOS_dict[match.player]
             else:
-                continue
+                SOS_dict[match.player_1_id][1] +=1
+                SOS_dict[match.player_2_id][1] +=1
+        
+    #At this point we have a list of wins and ties for each person. I already store the list of opponents so I can see how many games the person has played. 
 
-        entrant.SOS = wins_e/games_e
+    for entrant in entrants: #Calculate the SOS and other tiebreaker metrics for each person
+        #Calculating SOS as follows : 
+        #Summation over all opponents ( wins*1 + ties*.5) / Summation over all opponents( games played) 
 
-        updated_entrants.append(entrant)
+        opp_w = 0
+        opp_t = 0
+        opp_g = 0
+
+        for opponent in entrant.opponents: #opponent is the id of the opponent
+            opp_w += SOS_dict[opponent][0]
+            opp_t += SOS_dict[opponent][1]
+            opp_g += len(entrant_dict[opponent].opponents)
+
+        entrant.SOS = (opp_w + opp_t*(.5))/opp_g
+
+    #Att the point the SOS for each entrant should be calculated in the entrants list
 
     with app.app_context():
-        db.session.add_all(updated_entrants)
-        db.session.commit()
+        try:    
+            db.session.add_all(entrants + [tournament])
+            db.session.commit()
+            response = make_response({},200)
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f'Error {e} has occured')
+            response = make_response({'error':'Failed to Finalize'},500)
+
+    return response
 
 def CreateStandings(tournament_id):
 
@@ -388,6 +365,7 @@ def CreateStandings(tournament_id):
 
         print(ordered_entrants)
 
+#If I wanted to run a round-robin tournament I could do this the same way as a swiss tournament except it would just run for n-1 rounds. The way the matching algorithm works it would prioritize people that havent played each other so it would run until everybody has played each other. 
 
         
 def testouter(t_id,disc_id):

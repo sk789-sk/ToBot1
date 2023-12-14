@@ -272,6 +272,8 @@ async def next_round(ctx, t_id):
         message = "Pairings for the next round: \n"
 
         for match in data:
+
+            
             P1 = match['player_1']['discord_id']
             P2 = match['player_2']['discord_id']
 
@@ -303,6 +305,15 @@ async def end(ctx, t_id):
     #Bot
         #Message that the tournament is now concluded.
         #Display the standings maybe*
+
+    r = requests.get(f'http://127.0.0.1:5556/end/{t_id}')
+
+    if r.ok:
+        message = f'Results have been finalized'
+    else:
+        message = f'something went wrong'
+
+    await ctx.send(message)
     pass
 
 @client.command()

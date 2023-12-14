@@ -9,7 +9,7 @@ import os
 
 from config import app, db
 from models import Match , Entrant , Tournament
-from BracketGen import startTournament, BiPartiteMatchMaking
+from BracketGen import startTournament, BiPartiteMatchMaking , FinalizeResults
 
 
 
@@ -165,7 +165,7 @@ def start_tournament(t_id):
     
     return response
 
-@app.route('/UpdateMatch' , methods = ['PATCH'])
+@app.route('/UpdateMatch' , methods = ['PATCH'])   #this is really report loss
 def updateMatch():
     
     #slower option would be to query the entrant_id from the Entrant list
@@ -198,18 +198,20 @@ def updateMatch():
             print(entrant_1.opponents)
             
             #SQL-alchemy does not automatically track changes made to elements within an array. so in place mutations like .append() are not detected. Since its not detected there is no to the commit and no change to the database. 
+            
+            
+            
             #2 options for this, instead of using .append we do a non inplace mutation, such as copying the array and reassigning it a value, in that case we are basically creating a new array and assigning it and it would be detected. The other and better option is to use MutableList extension 
 
-            entrant_2_updated = entrant_2.opponents + [entrant_1.id]
-            entrant_1_updated = entrant_1.opponents + [entrant_2.id]
+            # entrant_2_updated = entrant_2.opponents + [entrant_1.id]
+            # entrant_1_updated = entrant_1.opponents + [entrant_2.id]
 
-            entrant_2.opponents = entrant_2_updated
-            entrant_1.opponents = entrant_1_updated
-
-
-            print(entrant_2.opponents)
-            print(entrant_1.opponents)
-
+            # entrant_2.opponents = entrant_2_updated
+            # entrant_1.opponents = entrant_1_updated
+            
+            #MutableList
+            entrant_2.opponents.append(entrant_1.id)
+            entrant_1.opponents.append(entrant_2.id)            
 
             #2 cases player_1 loss or player_2
             if match.player_1.discord_id == data['discord_id']: # player 1 has lost
@@ -264,6 +266,25 @@ def generate_matches(t_id):
         response = make_response(jsonify(matches),200)
     
     return response
+
+@app.route('/end/<int:t_id>')
+def end(t_id):
+
+    unfinished_matchlist = Match.query.filter(Match.tournament == t_id,Match.result == None).all()
+    
+    if len(unfinished_matchlist) > 0:
+        unfinished_list = []
+        for match in unfinished_matchlist:
+            unfinished_list.append(match.to_dict())
+
+        response = make_response({jsonify(unfinished_list)},409)
+
+    else:
+        response = FinalizeResults(t_id)
+
+    return response
+
+
 
 @app.route('/returnEntrants/<int:t_id>')
 def returnEntrants(t_id):

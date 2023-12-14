@@ -47,3 +47,7 @@ WHERE id=2;
 UPDATE Entrants 
 SET dropped = false
 WHERE id <=5;
+
+UPDATE Tournaments
+SET current_round = 1
+where id=2;

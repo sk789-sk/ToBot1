@@ -4,6 +4,7 @@ from sqlalchemy import MetaData, event
 from sqlalchemy.orm import validates
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.mutable import MutableList
 
 from config import db
 
@@ -72,7 +73,7 @@ class Entrant(db.Model, SerializerMixin):
     username = db.Column(db.String)
     discord_id = db.Column(db.BigInteger)
     point_total = db.Column(db.Integer)
-    opponents = db.Column(db.ARRAY((db.Integer)))
+    opponents = db.Column(MutableList.as_mutable(db.ARRAY((db.Integer))))
     dropped = db.Column(db.Boolean, default=False)
     pair_up_down = db.Column(db.Boolean, default = 0)
     bye = db.Column(db.Boolean, default=False)
