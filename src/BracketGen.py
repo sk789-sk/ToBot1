@@ -97,6 +97,7 @@ def BiPartiteMatchMaking(tourney_id):
     #Add weights between all A and B 
 
     for entrant_a in A_set:
+        print(entrant_a.opponents)
         for entrant_b in B_set:
             #If A and B have played each other set the weight to -inf, 
             #otherwise set the weight to be sum of the point totals 
@@ -158,14 +159,23 @@ def BiPartiteMatchMaking(tourney_id):
     #     matches.append(new_Match)
     
     #update database
+    match_list = []
     with app.app_context():
-        db.session.add_all(matches)
-        db.session.add(Tourney_info)
-        db.session.commit()
 
-    #return matches to bot 
+        try:
+            db.session.add_all(matches)
+            db.session.add(Tourney_info)
+            db.session.commit()
+            
+            for match in matches:
+                match_list.append(match.to_dict())
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f'Error {e} has occured')
+            response = make_response({'error': 'Failed to create Matches'}, 500)
 
-    return pairings
+
+    return match_list
 
 # BiPartiteMatchMaking(1)
 
@@ -386,3 +396,7 @@ def testouter(t_id,disc_id):
 
 
 # FinalizeResults(1)
+
+if __name__ == "__main__":
+    BiPartiteMatchMaking(1)
+    pass

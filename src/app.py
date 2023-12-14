@@ -9,7 +9,7 @@ import os
 
 from config import app, db
 from models import Match , Entrant , Tournament
-from BracketGen import startTournament
+from BracketGen import startTournament, BiPartiteMatchMaking
 
 
 
@@ -191,8 +191,17 @@ def updateMatch():
 
             #this should be a list for when it goes to postgres
 
-            entrant_2.opponents += f"{entrant_1.id},"
-            entrant_1.opponents += f"{entrant_2.id},"
+            # entrant_2.opponents += f"{entrant_1.id},"
+            # entrant_1.opponents += f"{entrant_2.id},"
+
+            print(entrant_2.opponents)
+            print(entrant_1.opponents)
+
+            entrant_2.opponents.append(entrant_1.id)
+            entrant_1.opponents.append(entrant_2.id)
+
+            print(entrant_2.opponents)
+            print(entrant_1.opponents)
 
 
             #2 cases player_1 loss or player_2
@@ -224,9 +233,33 @@ def updateMatch():
 
     return response
 
-@app.route('/Generate_Matches')
-def generate_matches():
-    return 'creating next round for tourney id: '
+@app.route('/Generate_Matches/<int:t_id>')
+def generate_matches(t_id):
+    #. Verify that all matches are completed, if not say we are awaiting matches
+
+    tourney = Tournament.query.filter(Tournament.id == t_id).first()
+    round_check = tourney.current_round 
+
+    unfinished_matches = Match.query.filter(Match.tournament==t_id,Match.round==round_check,Match.result==None).all()
+    print(unfinished_matches)
+
+    if len(unfinished_matches) !=0:
+        #return the matchs that need to be finished
+        unfinished_match_list = []
+        for match in unfinished_matches:
+            unfinished_match_list.append(match.to_dict())
+
+        response = make_response(jsonify(unfinished_match_list),409)
+
+    #. There are no unfinished matches so we run the function to create the next set of matches. the function also updates the tournament state. Need to add error handling for this Bipartite Function
+
+    else:
+        matches = BiPartiteMatchMaking(t_id) 
+        print('here')
+        print(type(matches))
+        response = make_response(jsonify(matches),200)
+    
+    return response
 
 @app.route('/returnEntrants/<int:t_id>')
 def returnEntrants(t_id):

@@ -12,7 +12,7 @@ class User(db.Model, SerializerMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String)
-    discord_id = db.Column(db.Integer)
+    discord_id = db.Column(db.BigInteger)
 
     def __repr__(self):
         return f'User is ${self.username}'
@@ -23,13 +23,14 @@ class Tournament(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
     game = db.Column(db.String)
-    format = db.Column(db.Integer) #This is to indicate tournamnet format, DE, Swiss, ladder etc
+    format = db.Column(db.String) #This is to indicate tournamnet format, DE, Swiss, ladder etc
     created_at = db.Column(db.DateTime(timezone=True), default= db.func.now())
     status = db.Column(db.String) #Not yet started, in progress, completed
     current_round = db.Column(db.Integer, default = 0)
+    creator = db.Column(db.BigInteger) 
 
     #ForeignKeys
-    creator = db.Column(db.Integer, db.ForeignKey('Users.id'))
+    
 
     #Relationships
     #Validations
@@ -69,13 +70,19 @@ class Entrant(db.Model, SerializerMixin):
     __tablename__ = 'Entrants'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String)
-    discord_id = db.Column(db.Integer)
+    discord_id = db.Column(db.BigInteger)
     point_total = db.Column(db.Integer)
-    opponents = db.Column((db.String), default="")
+    opponents = db.Column(db.ARRAY((db.Integer)))
     dropped = db.Column(db.Boolean, default=False)
     pair_up_down = db.Column(db.Boolean, default = 0)
     bye = db.Column(db.Boolean, default=False)
     SOS = db.Column(db.Float)
+
+    #CHoosing to have an opponents array stored in the database. The logic here is that while it denormalizes the database since we can get the information from the Matches, doing this prevents use from having to query the matches tables before created new matches, extracting the information into a dictionary and then before creating any edge on the graph we check the dictionary value to see what the weight should be. 
+    
+    # As long as i update players opponents columns and matches column in 1 transaction this should be fine. Basically turn that into 1 atomized action. 
+    # This also means that if I delete a match for any reason I would need to update the arrays as well. 
+
 
     #Foreign Keys
     tournament_id = db.Column(db.Integer, db.ForeignKey('Tournaments.id'))

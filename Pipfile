@@ -15,6 +15,7 @@ flask-migrate = "*"
 flask-bcrypt = "*"
 matplotlib = "*"
 "discord.py" = "*"
+psycopg2 = "*"
 
 [dev-packages]
 ipykernel = "*"

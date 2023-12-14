@@ -1,0 +1,23 @@
+1. Create the DB and the models to store the Data
+2. Create the logic for tourney setup   
+3. 
+
+
+Refer to the block diagram?
+
+Routes
+- Create 
+- JoinTournament
+- Start Tournament
+- Generate Matches
+- info
+
+Bot commands
+-Create
+-JoinTournament
+-Drop
+-Start
+-info
+-Standings
+-Start Next Round
+- loss 

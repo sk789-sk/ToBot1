@@ -244,7 +244,8 @@ async def loss(ctx, t_id): #report a loss,
     await ctx.send(response)
 
 @client.command()
-async def tie(ctx, t_id):
+async def draw(ctx, t_id): 
+    #In the case of a draw, it would want both players to accept a draw.
     pass
 
 @client.command()
@@ -262,7 +263,32 @@ async def next_round(ctx, t_id):
     #Bot will then
     # - Message Entrants with their opponent. 
     # - Post the pairings in channel by @'s
-    pass
+
+    r = requests.get(f'http://127.0.0.1:5556/Generate_Matches/{t_id}')
+
+    if r.ok:
+        data = r.json()
+
+        message = "Pairings for the next round: \n"
+
+        for match in data:
+            P1 = match['player_1']['discord_id']
+            P2 = match['player_2']['discord_id']
+
+            user_1 = await client.fetch_user(P1)
+            user_2 = await client.fetch_user(P2)
+
+            m1 = f'Your opponent is {user_2.name}'
+            m2 = f'Your opponent is {user_1.name}'
+
+            await user_1.send(m1)
+            await user_2.send(m2)
+
+            message += f'\n {user_1.mention} vs {user_2.mention}'
+
+        await ctx.send(message)
+    else:
+        await ctx.send('Error')
 
 @client.command()
 async def end(ctx, t_id):
