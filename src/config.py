@@ -18,9 +18,6 @@ DATABASE = os.environ.get(
 
 postgres_migrations_repo = os.path.join(BASE_DIR,'migrations','postgresql')
 
-
-# POSTGRES_DATABASE = 'postgresql://shamsk:Materials2016!@localhost/tobot'
-
 POSTGRES_DATABASE = f'postgresql://{os.getenv("DB_Username")}:{os.getenv("DB_Password")}@{os.getenv("DB_Host")}/{os.getenv("DB_name")}'
 
 

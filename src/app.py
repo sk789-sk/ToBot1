@@ -196,9 +196,16 @@ def updateMatch():
 
             print(entrant_2.opponents)
             print(entrant_1.opponents)
+            
+            #SQL-alchemy does not automatically track changes made to elements within an array. so in place mutations like .append() are not detected. Since its not detected there is no to the commit and no change to the database. 
+            #2 options for this, instead of using .append we do a non inplace mutation, such as copying the array and reassigning it a value, in that case we are basically creating a new array and assigning it and it would be detected. The other and better option is to use MutableList extension 
 
-            entrant_2.opponents.append(entrant_1.id)
-            entrant_1.opponents.append(entrant_2.id)
+            entrant_2_updated = entrant_2.opponents + [entrant_1.id]
+            entrant_1_updated = entrant_1.opponents + [entrant_2.id]
+
+            entrant_2.opponents = entrant_2_updated
+            entrant_1.opponents = entrant_1_updated
+
 
             print(entrant_2.opponents)
             print(entrant_1.opponents)
@@ -241,7 +248,6 @@ def generate_matches(t_id):
     round_check = tourney.current_round 
 
     unfinished_matches = Match.query.filter(Match.tournament==t_id,Match.round==round_check,Match.result==None).all()
-    print(unfinished_matches)
 
     if len(unfinished_matches) !=0:
         #return the matchs that need to be finished
@@ -255,8 +261,6 @@ def generate_matches(t_id):
 
     else:
         matches = BiPartiteMatchMaking(t_id) 
-        print('here')
-        print(type(matches))
         response = make_response(jsonify(matches),200)
     
     return response

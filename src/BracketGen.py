@@ -97,7 +97,6 @@ def BiPartiteMatchMaking(tourney_id):
     #Add weights between all A and B 
 
     for entrant_a in A_set:
-        print(entrant_a.opponents)
         for entrant_b in B_set:
             #If A and B have played each other set the weight to -inf, 
             #otherwise set the weight to be sum of the point totals 
@@ -115,11 +114,11 @@ def BiPartiteMatchMaking(tourney_id):
     #find the matching
 
     pairings = nx.max_weight_matching(matching_graph, maxcardinality=True)
+
     paired_entrants = set()
 
     matches = []    
-
-
+    update_obj_list = []
     #Create Matches
     for pairing in pairings:
         #each pairing is a tuple which is hashable so im guessing the set will have tuples instead of individuals, 
@@ -131,6 +130,7 @@ def BiPartiteMatchMaking(tourney_id):
             player_2_id = pairing[1].id,
         )
         matches.append(new_Match)
+        update_obj_list.append(new_Match)
 
     #Create Match for unpaired if necessary
     if len(entrants)%2 !=0: 
@@ -144,11 +144,16 @@ def BiPartiteMatchMaking(tourney_id):
             player_2_id = None,
             result = val.id
         )
-
-        #Update the entrant to also have bye listed in their name.
-
         matches.append(new_Match)
-    
+
+        #Update the entrant w/ bye points to also have bye listed in their name.
+        
+        val.point_total +=3
+        val.bye = True 
+
+        update_obj_list.append(val)
+        
+
     # for pair in pairings:
     #     new_Match = Match(
     #         tournament = tourney_id,
@@ -159,16 +164,22 @@ def BiPartiteMatchMaking(tourney_id):
     #     matches.append(new_Match)
     
     #update database
+    print('haha')
+    print(update_obj_list)
+    print('hehe')
+
     match_list = []
+
     with app.app_context():
 
         try:
-            db.session.add_all(matches)
+            db.session.add_all(update_obj_list)
             db.session.add(Tourney_info)
             db.session.commit()
             
             for match in matches:
                 match_list.append(match.to_dict())
+        
         except SQLAlchemyError as e:
             db.session.rollback()
             print(f'Error {e} has occured')
@@ -217,6 +228,7 @@ def startTournament(tourney_id):
 
     paired_entrants = set()
 
+
     for pair in pairings:
         new_Match = Match(
             tournament = tourney_id,
@@ -228,6 +240,7 @@ def startTournament(tourney_id):
         paired_entrants.update(pair)
 
         # print(new_Match)
+    update_list = []
 
     if len(entrants)%2 !=0:
 
@@ -248,18 +261,23 @@ def startTournament(tourney_id):
             player_2_id = None,
             result = val.id
         )
+        val.point_total +=3
+        update_list.append(val)
         matches.append(new_Match)
-    
+
+    update_list.append(matches)
+
     tourney_info.current_round = 1
+
+    print(update_list)
 
     with app.app_context():
 
         try:
-            db.session.add_all(matches)
+            db.session.add_all(update_list)
             db.session.add(tourney_info)
             db.session.commit()
             
-
             for match in matches:
                 match_list.append(match.to_dict())
 
