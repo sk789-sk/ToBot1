@@ -107,7 +107,8 @@ async def join(ctx, t_id: int): #enter a tournament
     #1. enter a tournament given a tournament id.
     #2. If user already entered return feedback
     #3. If tournament has started do not enter and feedback
-    #4. if failure inform
+    #4. Since the join command works by having the tournament id, there could be a scenario where 2 people from different servers join a tournament and get paired against each other. To join a tournament the user should be a member of the server of where the tournament was created. If they are not they should not be allowed to join the tournament
+    #5. if failure inform
 
     data = {
         'tournament_id' : t_id,
@@ -174,30 +175,62 @@ async def start(ctx, t_id:int):
         message = "Pairings for the tournament: \n"
 
         for match in data: 
-            print(match)
 
-            print('line break')
+            try:
 
+                if match['player_2'] is not None:
 
-            print(match['player_1'])
-
-            P1 = match['player_1']['discord_id']
-            P2 = match['player_2']['discord_id']
+                    P1 = match['player_1']['discord_id']
+                    P2 = match['player_2']['discord_id'] if match['player_2'] else None
 
 
-            user_1 = await client.fetch_user(P1)
-            user_2 = await client.fetch_user(P2) #returns a class discord.User
+                    user_1 = await client.fetch_user(P1)
+                    user_2 = await client.fetch_user(P2) #returns a class discord.User
+                    
+                    m1 = f'Your opponent is {user_2.name}'
+                    m2 = f'Your opponent is {user_1.name}'
+
+                    
+                    await user_1.send(m1)
+                    await user_2.send(m2)
+
+                    message += f'\n{user_1.mention} vs. {user_2.mention}'
+                else:
+                    P1 = match['player_1']['discord_id']
+                    user_1 = await client.fetch_user(P1) 
+                    m1 = f'You have a bye for the round'
+
+                    await user_1.send(m1)
+                    message += f'\n{user_1.mention} received a bye'
+            except:
+                
+                await ctx.send('Error displaying matches')
+            # try:
+
+            #     P1 = match['player_1']['discord_id']
+            #     P2 = match['player_2']['discord_id'] if match['player_2'] else None
+
+
+            #     user_1 = await client.fetch_user(P1)
+            #     user_2 = await client.fetch_user(P2) #returns a class discord.User
+                
+            #     m1 = f'Your opponent is {user_2.name}'
+            #     m2 = f'Your opponent is {user_1.name}'
+
+                
+            #     await user_1.send(m1)
+            #     await user_2.send(m2)
+
+            #     message += f'\n{user_1.mention} vs. {user_2.mention}'
             
-            m1 = f'Your opponent is {user_2.name}'
-            m2 = f'Your opponent is {user_1.name}'
+            # except: #Error is that match[p2 is a nonetype and not]
+            #     P1 = match['player_1']['discord_id']
+            #     user_1 = await client.fetch_user(P1) 
+            #     m1 = f'You have a bye for the round'
 
-            
-            await user_1.send(m1)
-            await user_2.send(m2)
+            #     await user_1.send(m1)
+            #     message += f'\n{user_1.mention} received a bye'
 
-            message += f'\n {user_1.mention} vs. {user_2.mention}'
-
-            print(message)
 
         await ctx.send('Tournament Started, Pairings Generated')
     
@@ -269,28 +302,58 @@ async def next_round(ctx, t_id):
     if r.ok:
         data = r.json()
 
+        print(data)
+
         message = "Pairings for the next round: \n"
 
         for match in data:
 
-            
-            P1 = match['player_1']['discord_id']
-            P2 = match['player_2']['discord_id']
+            try:
 
-            user_1 = await client.fetch_user(P1)
-            user_2 = await client.fetch_user(P2)
+                if match['player_2'] is not None:
 
-            m1 = f'Your opponent is {user_2.name}'
-            m2 = f'Your opponent is {user_1.name}'
+                    P1 = match['player_1']['discord_id']
+                    P2 = match['player_2']['discord_id']
 
-            await user_1.send(m1)
-            await user_2.send(m2)
+                    user_1 = await client.fetch_user(P1)
+                    user_2 = await client.fetch_user(P2)
 
-            message += f'\n {user_1.mention} vs {user_2.mention}'
+                    m1 = f'Your opponent is {user_2.name}'
+                    m2 = f'Your opponent is {user_1.name}'
 
-        await ctx.send(message)
+                    await user_1.send(m1)
+                    await user_2.send(m2)
+
+                    message += f'\n{user_1.mention} vs {user_2.mention}'
+                else:
+                    P1 = match['player_1']['discord_id']
+                    user_1 = await client.fetch_user(P1)
+                    m1 = f'You have a bye for the round'
+                    await user_1.send(m1)
+                    message += f'\n{user_1.mention} received a bye'
+
+            except:
+
+                await ctx.send('Error displaying matches')
+
+        
+
     else:
-        await ctx.send('Error')
+        if r.status_code == 409: #still have ongoing matches
+            data = r.json()
+
+            message = "Awaiting the Results of the following Matches: \n"
+
+            for match in data:
+                P1 = match['player_1']['discord_id']
+                P2 = match['player_2']['discord_id']
+
+                user_1 = await client.fetch_user(P1)
+                user_2 = await client.fetch_user(P2)
+
+                message += f'\n {user_1.name} vs {user_2.name}'
+
+    await ctx.send(message)
 
 @client.command()
 async def end(ctx, t_id):
@@ -330,7 +393,9 @@ async def standing(ctx, t_id:int): #optional top N people display top N
 
     pass 
 
-#QOL commands
+#QOL commands 
+
+
 
 @client.command()
 async def entrants(ctx): #view tournament information

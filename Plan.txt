@@ -1,23 +1,6 @@
-1. Create the DB and the models to store the Data
-2. Create the logic for tourney setup   
-3. 
+TODO
+
+[] 1. Since the join command works by having the tournament id, there could be a scenario where 2 people from different servers join a tournament and get paired against each other. To join a tournament the user should be a member of the server of where the tournament was created. If they are not they should not be allowed to join the tournament. Add this in
 
 
-Refer to the block diagram?
-
-Routes
-- Create 
-- JoinTournament
-- Start Tournament
-- Generate Matches
-- info
-
-Bot commands
--Create
--JoinTournament
--Drop
--Start
--info
--Standings
--Start Next Round
-- loss 
+[x] 2. If a match has a bye then the participant does not have a discord_id. This will raise an error when attempted to send messages with the matches. 

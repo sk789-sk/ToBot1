@@ -121,6 +121,7 @@ def BiPartiteMatchMaking(tourney_id):
     matches = []    
     update_obj_list = []
     #Create Matches
+    
     for pairing in pairings:
         #each pairing is a tuple which is hashable so im guessing the set will have tuples instead of individuals, 
         paired_entrants.update(pairing) 
@@ -174,8 +175,8 @@ def BiPartiteMatchMaking(tourney_id):
     with app.app_context():
 
         try:
-            db.session.add_all(update_obj_list)
-            db.session.add(Tourney_info)
+            db.session.add_all(matches + [Tourney_info]+[val])
+            # db.session.add(Tourney_info)
             db.session.commit()
             
             for match in matches:
@@ -185,7 +186,7 @@ def BiPartiteMatchMaking(tourney_id):
             db.session.rollback()
             print(f'Error {e} has occured')
             response = make_response({'error': 'Failed to create Matches'}, 500)
-
+            raise
 
     return match_list
 
@@ -224,8 +225,8 @@ def startTournament(tourney_id):
 
     #4. We have the pairings and now we need to turn them into match objects to store in the database. Extract the information from the Entrant
 
-    matches = []
-    match_list = []
+    matches = []   #List of match objects
+    match_list = [] #List of json matches that will be turned into json for the bot
 
     paired_entrants = set()
 
@@ -265,20 +266,20 @@ def startTournament(tourney_id):
         val.point_total +=3
         update_list.append(val)
         matches.append(new_Match)
-
-    update_list.append(matches)
-
+    
     tourney_info.current_round = 1
-
-    print(update_list)
+    
+    # update_list += matches 
+    # update_list += tourney_info
 
     with app.app_context():
+        print(matches)
 
         try:
-            db.session.add_all(update_list)
-            db.session.add(tourney_info)
+            db.session.add_all(matches + [tourney_info] +[val])
+            # db.session.add(tourney_info)
             db.session.commit()
-            
+
             for match in matches:
                 match_list.append(match.to_dict())
 
@@ -287,10 +288,11 @@ def startTournament(tourney_id):
             db.session.rollback()
             print(f'Error {e} has occured')
             response = make_response({'error': 'Failed to create Matches'}, 500)
+            raise
 
         except ValueError as ve:
             print(f'Error {ve} has occured')
-            
+            raise
 
     return match_list
 

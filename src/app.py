@@ -67,7 +67,7 @@ def Join_Tournament(t_id):
                 new_Entrant = Entrant(
                     tournament_id = t_id,
                     point_total = 0,
-                    opponents = "",
+                    opponents = [],
                     pair_up_down = None,
                     bye = None,
                     SOS = None,
@@ -141,15 +141,10 @@ def start_tournament(t_id):
     t = Tournament.query.filter(Tournament.id==t_id).first()
 
     if t.status == 'Initialized':
-
-        t.status = 'Underway'
-
+        
         try:
             matches = startTournament(t_id)   
-            
-            db.session.add(t)
-            db.session.commit()
-              
+                          
             #I think these matches are not bound to session and is causing error
             #i think it was needing db access to turn the matches into something that is jsonifyiable and there was a desync between the sessions. I have the bracket gen function returning them in jsonifyable format now.
 
