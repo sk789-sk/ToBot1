@@ -78,6 +78,9 @@ class Entrant(db.Model, SerializerMixin):
     pair_up_down = db.Column(db.Boolean, default = 0)
     bye = db.Column(db.Boolean, default=False)
     SOS = db.Column(db.Float)
+    Bucholz = db.Column(db.Integer)
+    medianBucholz = db.Column(db.Integer)
+    BucholzCut1 = db.Column(db.Integer)
 
     #CHoosing to have an opponents array stored in the database. The logic here is that while it denormalizes the database since we can get the information from the Matches, doing this prevents use from having to query the matches tables before created new matches, extracting the information into a dictionary and then before creating any edge on the graph we check the dictionary value to see what the weight should be. 
     

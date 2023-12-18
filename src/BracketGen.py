@@ -2,6 +2,7 @@ import networkx as nx
 from itertools import combinations
 from collections import defaultdict
 import matplotlib.pyplot as plt
+import random
 
 from flask import Flask, make_response
 from sqlalchemy.exc import SQLAlchemyError
@@ -18,11 +19,12 @@ def CreateMatches(tourney_id):
 
     #For Now we will recreate the graph from the tournament records.
 
-    #1. Get all the entrants 
+    #1. Get all the entrants
 
     with app.app_context():
-        entrants = Entrant.query.filter(Entrant.tournament_id==tourney_id,Entrant.dropped != True).all() 
-    #2.Create the graph for creating matches. 
+        entrants = Entrant.query.filter(Entrant.tournament_id==tourney_id,Entrant.dropped is not True).all() 
+    #2.Create the graph for creating matches.
+    random.shuffle(entrants)
 
     G = nx.Graph()
     G.add_nodes_from(entrants)
@@ -88,6 +90,7 @@ def BiPartiteMatchMaking(tourney_id):
     matching_graph = nx.Graph()
 
     #split entrants into 2 groups
+    random.shuffle(entrants)
 
     A_set = entrants[len(entrants)//2:]
     B_set = entrants[:len(entrants)//2]
@@ -135,26 +138,48 @@ def BiPartiteMatchMaking(tourney_id):
         update_obj_list.append(new_Match)
 
     #Create Match for unpaired if necessary
+
     if len(entrants)%2 !=0: 
         unmatched = set(entrants).difference(paired_entrants) 
         val = unmatched.pop()
 
         new_Match = Match(
-            tournament = tourney_id,
-            round = current_r+1,
-            player_1_id = val.id,
-            player_2_id = None,
-            result = val.id
-        )
+                tournament = tourney_id,
+                round = current_r+1,
+                player_1_id = val.id,
+                player_2_id = None,
+                result = val.id
+            )
         matches.append(new_Match)
 
-        #Update the entrant w/ bye points to also have bye listed in their name.
-        
+            #Update the entrant w/ bye points to also have bye listed in their name.
+            
         val.point_total +=3
         val.bye = True 
 
         update_obj_list.append(val)
-        
+
+############################################################################3
+        # if val.bye == True:
+        #     BiPartiteMatchMaking(tourney_id)  #Add a safeguard in to prevent to many recurse calls. 
+        # else:
+
+        #     new_Match = Match(
+        #         tournament = tourney_id,
+        #         round = current_r+1,
+        #         player_1_id = val.id,
+        #         player_2_id = None,
+        #         result = val.id
+        #     )
+        #     matches.append(new_Match)
+
+        #     #Update the entrant w/ bye points to also have bye listed in their name.
+            
+        #     val.point_total +=3
+        #     val.bye = True 
+
+        #     update_obj_list.append(val)
+###########################################################################################333        
 
     # for pair in pairings:
     #     new_Match = Match(
@@ -299,7 +324,7 @@ def startTournament(tourney_id):
 def FinalizeResults(tournament_id):
     #1. Set the tournament status to completed
     #2. Create the Tiebreaker Calculations, SOS, Bucholz, H2H,
-
+    #3. Modified Median Bucholz Summation numer of points divided by number of games won 
     with app.app_context():
 
         entrants = Entrant.query.filter(Entrant.tournament_id==tournament_id).all()
@@ -321,8 +346,6 @@ def FinalizeResults(tournament_id):
         else:
             if match.result !=0: #0 indicates a tie any other value is the id of the winner
                 SOS_dict[match.result][0] +=1  
-                # SOS_dict[match.result][2] +=1
-                # SOS_dict[match.player]
             else:
                 SOS_dict[match.player_1_id][1] +=1
                 SOS_dict[match.player_2_id][1] +=1
@@ -331,18 +354,41 @@ def FinalizeResults(tournament_id):
 
     for entrant in entrants: #Calculate the SOS and other tiebreaker metrics for each person
         #Calculating SOS as follows : 
-        #Summation over all opponents ( wins*1 + ties*.5) / Summation over all opponents( games played) 
+        #Summation over all opponents ( wins*1 + ties*.5) / Summation over all opponents( games played)  
+        #Calculat median Bucholz
+        #Calculate Bucholz
+        ##Bucholz Cut 1 would essentially remove an 0-2 drop 
+
+        #FIDE has a system where where dropped opponent score is given as points_when_drop + ties for rest of games.
+        #Newer system is Your score -  
+
+        # https://chessischess.blogspot.com/2011/01/idiosyncrasies-of-swiss-manager-program.html 
+        #https://chess.stackexchange.com/questions/24915/how-is-buchholz-score-calculated-in-a-swiss-tournament
+        #https://www.fide.com/FIDE/handbook/Standards_of_Chess_Equipment_and_tournament_venue.pdf 
+        #https://www.delanceyukschoolschesschallenge.com/wp-content/uploads/2018/06/Tie-Breaks-Explained-V2.pdf 
+
+        
+        
+
 
         opp_w = 0
         opp_t = 0
         opp_g = 0
-
+        opp_points = []
+        opp_weighted_points = []
         for opponent in entrant.opponents: #opponent is the id of the opponent
             opp_w += SOS_dict[opponent][0]
             opp_t += SOS_dict[opponent][1]
             opp_g += len(entrant_dict[opponent].opponents)
+            opp_points.append(entrant_dict[opponent].point_total)
 
+
+        #probably faster to cut to 
+            
         entrant.SOS = (opp_w + opp_t*(.5))/opp_g
+        entrant.Bucholz = sum(opp_points)
+        entrant.medianBucholz = sum(opp_points) - min(opp_points) - max(opp_points)
+        entrant.BucholzCut1 = sum(opp_points) - min(opp_points)
 
     #Att the point the SOS for each entrant should be calculated in the entrants list
 
