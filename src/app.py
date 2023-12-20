@@ -9,7 +9,7 @@ import os
 
 from config import app, db
 from models import Match , Entrant , Tournament
-from BracketGen import startTournament, BiPartiteMatchMaking , FinalizeResults
+from BracketGen import startTournament, BiPartiteMatchMaking , FinalizeResults , CreateStandings
 
 
 
@@ -69,7 +69,7 @@ def Join_Tournament(t_id):
                     point_total = 0,
                     opponents = [],
                     pair_up_down = None,
-                    bye = None,
+                    bye = 0,
                     SOS = None,
                     dropped = None,
                     username = data['username'],
@@ -297,6 +297,44 @@ def returnEntrants(t_id):
     response = make_response(jsonify(entrant_list),200)
     return response
 
+@app.route('/Standings/<int:t_id>', methods=['GET','POST'])
+def get_standings(t_id):
+
+#     data = {
+#     "tournament_id": 123,
+#     "filter_parameters": []
+# }
+    
+    if request.method == 'GET':
+        
+        standings_list = []
+
+        standings = CreateStandings(t_id)
+        
+        for player in standings:
+            standings_list.append(player.to_dict())
+
+        response = make_response(jsonify(standings_list),200)
+
+    elif request.method =='POST':
+
+        data = request.json()
+
+
+        standings = CreateStandings(t_id, data.filter_parameters)
+        standings_list = []
+
+        for player in standings:
+            standings_list.append(player.to_dict())
+
+        response = make_response(jsonify(standings_list),200)
+
+    #this only works in 3.7+ where dictionary key insertions are kept in order
+
+    return response
+
+
+
 @app.route('/returnMatches/<int:t_id>')
 def return_all(t_id):
     matches = Match.query.filter(Match.tournament==t_id).all()
@@ -306,6 +344,7 @@ def return_all(t_id):
 
     response = make_response(jsonify(match_list),200)
     return response   
+
 
 
 if __name__ == '__main__':

@@ -7,7 +7,7 @@ import random
 from flask import Flask, make_response
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import aliased
-from sqlalchemy import or_
+from sqlalchemy import or_, desc
 
 #local imports
 
@@ -155,7 +155,7 @@ def BiPartiteMatchMaking(tourney_id):
             #Update the entrant w/ bye points to also have bye listed in their name.
             
         val.point_total +=3
-        val.bye = True 
+        val.bye += 1
 
         update_obj_list.append(val)
 
@@ -289,6 +289,7 @@ def startTournament(tourney_id):
             result = val.id
         )
         val.point_total +=3
+        val.bye += 1
         update_list.append(val)
         matches.append(new_Match)
     
@@ -340,15 +341,16 @@ def FinalizeResults(tournament_id):
     
     SOS_dict = defaultdict(lambda: [0,0])   #{ id: [win, tie] }
 
-    for match in matches: #We go over each match and add the results to my SOS_dict. Question is do byes count as wins for SOS I personally think no. 
-        if match.player_2_id == None: #This would be a match where a bye was given
-            continue
+    for match in matches: #We go over each match and add the results to my SOS_dict. Question is do byes count as wins for SOS I personally think no. Looking at tourney recrods, a win you get when you play against a bye counts as a win 
+        # if match.player_2_id == None: #This would be a match where a bye was given
+        #     continue
+        # else:
+            
+        if match.result !=0: #0 indicates a tie any other value is the id of the winner
+            SOS_dict[match.result][0] +=1  
         else:
-            if match.result !=0: #0 indicates a tie any other value is the id of the winner
-                SOS_dict[match.result][0] +=1  
-            else:
-                SOS_dict[match.player_1_id][1] +=1
-                SOS_dict[match.player_2_id][1] +=1
+            SOS_dict[match.player_1_id][1] +=1
+            SOS_dict[match.player_2_id][1] +=1
         
     #At this point we have a list of wins and ties for each person. I already store the list of opponents so I can see how many games the person has played. 
 
@@ -358,6 +360,7 @@ def FinalizeResults(tournament_id):
         #Calculat median Bucholz
         #Calculate Bucholz
         ##Bucholz Cut 1 would essentially remove an 0-2 drop 
+        ##SOS.SOS second tiebreaker that konami uses
 
         #FIDE has a system where where dropped opponent score is given as points_when_drop + ties for rest of games.
         #Newer system is Your score -  
@@ -370,22 +373,37 @@ def FinalizeResults(tournament_id):
         
         
 
-
+        #SOS vars
         opp_w = 0
         opp_t = 0
         opp_g = 0
+        
+        #SOSOS vars
+        opp_opp_w = 0
+        opp_opp_t = 0
+        opp_opp_g = 0
+
+
         opp_points = []
-        opp_weighted_points = []
+        
         for opponent in entrant.opponents: #opponent is the id of the opponent
             opp_w += SOS_dict[opponent][0]
             opp_t += SOS_dict[opponent][1]
-            opp_g += len(entrant_dict[opponent].opponents)
+            opp_g += len(entrant_dict[opponent].opponents) + entrant_dict[opponent].bye
             opp_points.append(entrant_dict[opponent].point_total)
 
+            #This is for Konami SOSOS
+            for opp_2 in entrant_dict[opponent].opponents:
+                opp_opp_w += SOS_dict[opp_2][0]
+                opp_opp_t += SOS_dict[opp_2][1]
+                opp_opp_g += len(entrant_dict[opp_2].opponents) + entrant_dict[opp_2].bye 
 
-        #probably faster to cut to 
+
+        #probably better to sort points and then do 0 and last index. Assuming each min max has to sort anyway
             
-        entrant.SOS = (opp_w + opp_t*(.5))/opp_g
+        entrant.SOS = round((opp_w + opp_t*(.5))/opp_g,3)
+        entrant.SOSOS = round((opp_opp_w + opp_opp_t*(.5))/opp_opp_g,3)
+
         entrant.Bucholz = sum(opp_points)
         entrant.medianBucholz = sum(opp_points) - min(opp_points) - max(opp_points)
         entrant.BucholzCut1 = sum(opp_points) - min(opp_points)
@@ -404,14 +422,24 @@ def FinalizeResults(tournament_id):
 
     return response
 
-def CreateStandings(tournament_id):
+def CreateStandings(tournament_id, *args):
+
+    if not args:
+        args = ('SOS', 'SOSOS')
 
     with app.app_context():
+        query = Entrant.query.filter(Entrant.tournament_id==tournament_id).order_by(desc(Entrant.point_total))
+        
+        for arg in args:
+            if not hasattr(Entrant, arg):
+                print(f'Invalid attribute {arg}. Continuing with next attribute' )
+                continue
+            
+            query = query.order_by(desc(getattr(Entrant,arg)))
 
-        ordered_entrants = Entrant.query.filter(Entrant.tournament_id==tournament_id).order_by(Entrant.point_total).order_by(Entrant.SOS).all()
+        ordered_entrants = query.all()
 
-
-        print(ordered_entrants)
+    return(ordered_entrants)
 
 #If I wanted to run a round-robin tournament I could do this the same way as a swiss tournament except it would just run for n-1 rounds. The way the matching algorithm works it would prioritize people that havent played each other so it would run until everybody has played each other. 
 
@@ -439,8 +467,6 @@ def testouter(t_id,disc_id):
         # print(match[0].player_1_id.discord_id)
 
 
-# FinalizeResults(1)
-
 if __name__ == "__main__":
-    BiPartiteMatchMaking(1)
+    CreateStandings(6)
     pass

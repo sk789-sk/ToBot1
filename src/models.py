@@ -74,10 +74,11 @@ class Entrant(db.Model, SerializerMixin):
     discord_id = db.Column(db.BigInteger)
     point_total = db.Column(db.Integer)
     opponents = db.Column(MutableList.as_mutable(db.ARRAY((db.Integer))))
-    dropped = db.Column(db.Boolean, default=False)
+    dropped = db.Column(db.Boolean, default=False) #I could store this as when 
     pair_up_down = db.Column(db.Boolean, default = 0)
-    bye = db.Column(db.Boolean, default=False)
+    bye = db.Column(db.Integer, default=0)   #number of byes the player has received
     SOS = db.Column(db.Float)
+    SOSOS = db.Column(db.Float)
     Bucholz = db.Column(db.Integer)
     medianBucholz = db.Column(db.Integer)
     BucholzCut1 = db.Column(db.Integer)
