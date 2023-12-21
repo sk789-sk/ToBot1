@@ -431,6 +431,9 @@ def CreateStandings(tournament_id, *args):
         query = Entrant.query.filter(Entrant.tournament_id==tournament_id).order_by(desc(Entrant.point_total))
         
         for arg in args:
+            print(type(arg))
+            print(arg)
+            print(args)
             if not hasattr(Entrant, arg):
                 print(f'Invalid attribute {arg}. Continuing with next attribute' )
                 continue

@@ -77,8 +77,8 @@ class Entrant(db.Model, SerializerMixin):
     dropped = db.Column(db.Boolean, default=False) #I could store this as when 
     pair_up_down = db.Column(db.Boolean, default = 0)
     bye = db.Column(db.Integer, default=0)   #number of byes the player has received
-    SOS = db.Column(db.Float)
-    SOSOS = db.Column(db.Float)
+    SOS = db.Column(db.Float, default = 0)
+    SOSOS = db.Column(db.Float, default = 0)
     Bucholz = db.Column(db.Integer)
     medianBucholz = db.Column(db.Integer)
     BucholzCut1 = db.Column(db.Integer)

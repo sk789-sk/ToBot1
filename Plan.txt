@@ -4,3 +4,5 @@ TODO
 
 
 [x] 2. If a match has a bye then the participant does not have a discord_id. This will raise an error when attempted to send messages with the matches. 
+
+3. The BracketGen functions alot of them have repeats and have grown to be to large. Refactor them into smaller chunks. Follow the 

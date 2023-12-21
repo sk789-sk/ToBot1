@@ -1,20 +1,24 @@
-import discord 
-from discord.ext import commands
 import random as rd
 import requests 
 import os
+import asyncio 
+
+import discord 
+from discord.ext import commands
 from dotenv import load_dotenv
 
-# import BracketGen
+from botHelperfunctions import create_table
 
-#Create Tournament 
-#Send Pairings to entrants
-#send results to API
 
 load_dotenv()
 
 intents = discord.Intents.default()
 intents.message_content = True 
+
+#defaults 
+default_timeout = 15.0
+
+
 
 # client = discord.Client(intents=intents)
 
@@ -25,6 +29,18 @@ intents.message_content = True
 # bot= commands.Bot(prefix,intents) then using @bot.command/event is an extension of the Client class, seems like it just has some common use cases built in and is just easier to use then. 
 
 client = commands.Bot(command_prefix='$',intents=intents ,case_insensitive=True)
+
+
+
+#helper functions
+
+# def create_table(data,header= ['Rank', 'Player', 'Points', 'Tiebreak1','Tiebreak2'],tiebreaker_metrics=['SOS','SOSOS']):
+#     body = []
+#     for idx, entrant in enumerate(data):
+#         body.append([idx+1,entrant['username'],entrant['point_total'],entrant[tiebreaker_metrics[0]],entrant[tiebreaker_metrics[1]]])
+#     message = table2ascii(header=header, body= body)   
+#     return message
+
 
 
 
@@ -55,7 +71,7 @@ async def on_message(message):
     #Ok so this where the onmessage bit would occur. We define the messages and then what the
     #/enter, /createTournament, /createPairings, /Finalize etc., /endTourney  
 
- #TEST commands
+#TEST commands
 
 @client.command()
 async def ping(ctx):
@@ -390,8 +406,95 @@ async def standing(ctx, t_id:int): #optional top N people display top N
         #Send back an order list of standing based on the criteria
     #Bot will
         #Display the standings in channel
+    
+    prompt = await ctx.send(
+        "Select Ranking Criteria: \n"
+        "1. Konami standard (Points/SOS/SOSOS) \n"
+        "2. Points, BucholzCut1, Median-Bucholz \n"
+        "3. Custom \n"
+
+        "Note: On-Going tournaments will only sort by points, tiebreakers are calculated when all matches are finished"
+    )
+
+
+    #Check function for wait_for to make it respond only to user
+    def check(message):
+        return message.author == ctx.author and ctx.channel==message.channel
+
+    #get a response to the prompt
+    try:
+        response = await client.wait_for('message', timeout=default_timeout, check=check)
+
+
+    except asyncio.TimeoutError:
+        await ctx.send('Timed out. Try again')
+
+    #use the users response to ge the logic. 
+    #discord limit of 2000 characters
+
+    if response.content.strip() == '1':
+        r = requests.get(f'http://127.0.0.1:5556/Standings/{t_id}')
+       
+        if r.ok:
+            data = r.json()
+            message = create_table(r.json(),header= ['Rank', 'Player', 'Points', 'Opp Win %','Opp Opps Win %'],tiebreaker_metrics=['SOS','SOSOS'])
+            await ctx.send(f'```\n{message}\n```')
+        
+        else:
+            message = 'Issue retreiving tournament results'
+    
+    elif response.content.strip() =='2':
+        
+        data = {
+            'tournament' : t_id,
+            'filter_parameters' : ['BucholzCut1','medianBucholz']
+        }
+        
+        r = requests.post(f'http://127.0.0.1:5556/Standings/{t_id}', json=data)
+        if r.ok:
+            message = create_table(r.json(),header= ['Rank', 'Player', 'Points', 'BucholzCut1','medianBucholz'],tiebreaker_metrics=['BucholzCut1','medianBucholz'])
+            await ctx.send(f'```\n{message}\n```')
+        else:
+            message = 'Issue retreiving tournament results'
+    
+    elif response.content.strip() =='3':
+    
+        filters_dict = {
+            '1':'SOS',
+            '2':'SOSOS',
+            '3':'BucholzCut1',
+            '4':'medianBucholz',
+            '5':'Bucholz'
+        }
+    
+        await ctx.send("Select minimum of 2: \n" "1. SOS \n" "2. SOSOS \n" "3. BucholzCut1 \n" "4. medianBucholz \n" "5. Bucholz \n""Ex: 1,3,4,5 " )
+        try:
+            response = await client.wait_for('message', timeout=default_timeout, check=check)
+        except asyncio.TimeoutError:
+            await ctx.send('Timed out. Try again')
+        
+        try:
+            selected_filters = [filters_dict[id] for id in response.content.strip().split(",")]
+            data = {
+            'tournament' : t_id,
+            'filter_parameters' : selected_filters
+            }
+        
+            r = requests.post(f'http://127.0.0.1:5556/Standings/{t_id}', json=data)
+            if r.ok:
+                message = create_table(r.json(),header= ['Rank', 'Player', 'Points', selected_filters[0],selected_filters[1]],tiebreaker_metrics=selected_filters)
+                await ctx.send(f'```\n{message}\nIf more than 2 metrics were selected only the first 2 values are displayed for formatting```')
+            else:
+                message = 'Issue retreiving tournament results'
+        except:
+            await ctx.send('Invalid inputs.')
+
+    else:
+        print('invalid response')
 
     pass 
+
+
 
 #QOL commands 
 

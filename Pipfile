@@ -16,6 +16,7 @@ flask-bcrypt = "*"
 matplotlib = "*"
 "discord.py" = "*"
 psycopg2 = "*"
+table2ascii = "*"
 
 [dev-packages]
 ipykernel = "*"

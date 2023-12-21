@@ -318,10 +318,8 @@ def get_standings(t_id):
 
     elif request.method =='POST':
 
-        data = request.json()
-
-
-        standings = CreateStandings(t_id, data.filter_parameters)
+        data = request.get_json()
+        standings = CreateStandings(t_id, *data['filter_parameters'])
         standings_list = []
 
         for player in standings:
