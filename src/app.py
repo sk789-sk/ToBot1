@@ -31,7 +31,8 @@ def create():
             game = data['game'],
             format = data['format'],
             creator = data['creator'],
-            status = 'Initialized'
+            status = 'Initialized',
+            guild_id = data['guild_id']
         )
         
         db.session.add(new_tournament)
@@ -343,7 +344,16 @@ def return_all(t_id):
     response = make_response(jsonify(match_list),200)
     return response   
 
+@app.route('/returntournaments/<int:guild_id>')
+def guilds_tournaments(guild_id):
 
+    init_tournaments = Tournament.query.filter(Tournament.guild_id==guild_id,Tournament.status=='Initialized').all()
+
+    tournament_list = [tournament.to_dict() for tournament in init_tournaments]
+
+    response = make_response(jsonify(tournament_list),200)
+
+    return response
 
 if __name__ == '__main__':
 

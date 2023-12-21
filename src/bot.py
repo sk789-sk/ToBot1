@@ -18,6 +18,9 @@ intents.message_content = True
 #defaults 
 default_timeout = 15.0
 
+tournament_cache = { 
+    #server_id: [(db_id,tournament name),....]
+}
 
 
 # client = discord.Client(intents=intents)
@@ -29,20 +32,6 @@ default_timeout = 15.0
 # bot= commands.Bot(prefix,intents) then using @bot.command/event is an extension of the Client class, seems like it just has some common use cases built in and is just easier to use then. 
 
 client = commands.Bot(command_prefix='$',intents=intents ,case_insensitive=True)
-
-
-
-#helper functions
-
-# def create_table(data,header= ['Rank', 'Player', 'Points', 'Tiebreak1','Tiebreak2'],tiebreaker_metrics=['SOS','SOSOS']):
-#     body = []
-#     for idx, entrant in enumerate(data):
-#         body.append([idx+1,entrant['username'],entrant['point_total'],entrant[tiebreaker_metrics[0]],entrant[tiebreaker_metrics[1]]])
-#     message = table2ascii(header=header, body= body)   
-#     return message
-
-
-
 
 @client.event
 async def on_ready():
@@ -95,23 +84,26 @@ async def copy(ctx, arg):
 #Tournament Commands
 
 @client.command()
-async def create(ctx, name): #create tournament information
+async def create(ctx, name): 
+    #create tournament information
     #Create a Tournament, add in additional parameters, figure out how to make it as a dropdown step by step.
+    #Delete tournament cache
 
     data = {
         'name': name,
         'game': 'YGO',
         'format': 'Swiss',
-        'creator': int(ctx.author.id)
+        'creator': int(ctx.author.id),
+        'guild_id': int(ctx.guild.id)
     }
 
     headers = {'Content-Type': 'application/json'}
     r = requests.post('http://127.0.0.1:5556/Create', json=data)
     
-    print(r.status_code)
-
     if r.ok:
         response = f'Tournament Created Successfully'
+        tournament_cache[ctx.guild.id] = None
+
     else:
         response = f'Failed to create'
     
@@ -119,7 +111,15 @@ async def create(ctx, name): #create tournament information
 
 
 @client.command()
-async def join(ctx, t_id: int): #enter a tournament
+async def join(ctx, t_id: int): 
+    
+    #First we get a list of tournaments that the user can join.
+    #Since this information will not be changing that much we can cache it in the bot
+    #We look for tournaments that were created in the server and and that are open
+    #If that result is cached we will take it form there, if not we will make the 
+
+    
+    #enter a tournament
     #1. enter a tournament given a tournament id.
     #2. If user already entered return feedback
     #3. If tournament has started do not enter and feedback
@@ -218,43 +218,15 @@ async def start(ctx, t_id:int):
 
                     await user_1.send(m1)
                     message += f'\n{user_1.mention} received a bye'
-            except:
-                
+            except:                
                 await ctx.send('Error displaying matches')
-            # try:
-
-            #     P1 = match['player_1']['discord_id']
-            #     P2 = match['player_2']['discord_id'] if match['player_2'] else None
-
-
-            #     user_1 = await client.fetch_user(P1)
-            #     user_2 = await client.fetch_user(P2) #returns a class discord.User
-                
-            #     m1 = f'Your opponent is {user_2.name}'
-            #     m2 = f'Your opponent is {user_1.name}'
-
-                
-            #     await user_1.send(m1)
-            #     await user_2.send(m2)
-
-            #     message += f'\n{user_1.mention} vs. {user_2.mention}'
-            
-            # except: #Error is that match[p2 is a nonetype and not]
-            #     P1 = match['player_1']['discord_id']
-            #     user_1 = await client.fetch_user(P1) 
-            #     m1 = f'You have a bye for the round'
-
-            #     await user_1.send(m1)
-            #     message += f'\n{user_1.mention} received a bye'
-
 
         await ctx.send('Tournament Started, Pairings Generated')
     
         await ctx.send(message)
     else:
-
-        await ctx.send('ERROR')
-        "Tournament is already underway or some error creating matches provide feedback"
+        await ctx.send('Tournament has already begun')
+  
 
 @client.command()
 async def loss(ctx, t_id): #report a loss,
@@ -497,6 +469,7 @@ async def standing(ctx, t_id:int): #optional top N people display top N
 
 
 #QOL commands 
+
 
 
 

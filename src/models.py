@@ -29,6 +29,7 @@ class Tournament(db.Model, SerializerMixin):
     status = db.Column(db.String) #Not yet started, in progress, completed
     current_round = db.Column(db.Integer, default = 0)
     creator = db.Column(db.BigInteger) 
+    guild_id = db.Column(db.BigInteger)
 
     #ForeignKeys
     
