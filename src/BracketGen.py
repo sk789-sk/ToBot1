@@ -294,7 +294,7 @@ def startTournament(tourney_id):
         matches.append(new_Match)
     
     tourney_info.current_round = 1
-    
+    tourney_info.status = 'Underway'
     # update_list += matches 
     # update_list += tourney_info
 
@@ -431,9 +431,6 @@ def CreateStandings(tournament_id, *args):
         query = Entrant.query.filter(Entrant.tournament_id==tournament_id).order_by(desc(Entrant.point_total))
         
         for arg in args:
-            print(type(arg))
-            print(arg)
-            print(args)
             if not hasattr(Entrant, arg):
                 print(f'Invalid attribute {arg}. Continuing with next attribute' )
                 continue

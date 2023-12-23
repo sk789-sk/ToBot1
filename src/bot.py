@@ -8,7 +8,10 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from botHelperfunctions import create_table
+from cache import tournament_cache, set_cache
 
+from wip_bot_commands import join_t
+from tournamentslashfunctions import join_slash_t
 
 load_dotenv()
 
@@ -18,9 +21,6 @@ intents.message_content = True
 #defaults 
 default_timeout = 15.0
 
-tournament_cache = { 
-    #server_id: [(db_id,tournament name),....]
-}
 
 
 # client = discord.Client(intents=intents)
@@ -31,57 +31,93 @@ tournament_cache = {
 #Theres 2 ways to connect to discord here. client =  discord.Client is the websocket and has more flexibility.
 # bot= commands.Bot(prefix,intents) then using @bot.command/event is an extension of the Client class, seems like it just has some common use cases built in and is just easier to use then. 
 
+#Slash commands use interactions, prefix commands use context
+
 client = commands.Bot(command_prefix='$',intents=intents ,case_insensitive=True)
+
+
 
 @client.event
 async def on_ready():
     print(f'Logged in with {client.user}')
+
+    try:
+        synched = await client.tree.sync()
+        print(f"synched with {len(synched)} commands")
+        print(f'{synched}')
+    except Exception as e:
+        print(e)
+
+    #Test slash commands
+    test_guild = 1178775700573012038
+
+    # await client.application_command_create(test_guild, "rps", "Play rock-paper-scissors")
+
+
     #on_ready() is an event thats is within the client library and is called when the bot has logged in. 
+        
+test_guild = 1178775700573012038
+
+@client.tree.command(name='hello')
+async def hello(interaction:discord.Interaction):
+    await interaction.response.send_message("hello!", ephemeral=True)
+    
+    val = rd.choice(['rock', 'paper', 'scissors'])    
+
+    await interaction.response.send_message(val, ephemeral=True)
+
+@client.tree.command(name='rps')
+async def rps(interaction:discord.Interaction):
+    val = rd.choice(['rock', 'paper', 'scissors'])    
+    await interaction.response.send_message(val, ephemeral=True)
+
+
+@client.tree.command(name='join_slash',description='Join a tournament')
+async def joinslasht(interaction:discord.Interaction):
+    await join_slash_t(interaction,client)
+
+@client.tree.command(name='create', description='Create a tournament')
+async def createslasht(interaction:discord.Interaction, name: str, game: str, format: str='Swiss'):
+    await interaction.response.send_message('test')
+    pass
+
+
+
+
+
+
+
+
+
 
 @client.event
 async def on_message(message):
-    # print(message)
-    # print(type(message.author))
 
     if message.author == client.user:
         return #do nothing on bot message to avoid recursion 
     
     if message.content.startswith('$h'):
         await message.channel.send('Hello!')
-
-    #having the event for message and the command seems to conflict. seems like it prioritizes the message and then never gets to the command.
-    # https://discordpy.readthedocs.io/en/latest/faq.html#why-does-on-message-make-my-commands-stop-working
-
     await client.process_commands(message)
+    
 
-
-    #my guess is that we send a message that has $h we will return hello work probable with $hhh?
-
-    #Ok so this where the onmessage bit would occur. We define the messages and then what the
-    #/enter, /createTournament, /createPairings, /Finalize etc., /endTourney  
-
-#TEST commands
-
+####################### PREFIX COMMANDS #####################################
+    
+###TEST COMMANDS ###
 @client.command()
 async def ping(ctx):
     await ctx.send("pong")
 
 @client.command()
-async def RPS(ctx):
-    #return an rock-paper-scissors value for 
-
+async def RPS_t(ctx):
     val = rd.choice(['rock', 'paper', 'scissors'])    
-    await ctx.send(val)
-
+    await ctx.send(val, ephemeral=True)
 
 @client.command()
 async def copy(ctx, arg):
     await ctx.send(arg)
 
-
-
-
-#Tournament Commands
+###Tournament Commands ###
 
 @client.command()
 async def create(ctx, name): 
@@ -111,21 +147,8 @@ async def create(ctx, name):
 
 
 @client.command()
-async def join(ctx, t_id: int): 
-    
-    #First we get a list of tournaments that the user can join.
-    #Since this information will not be changing that much we can cache it in the bot
-    #We look for tournaments that were created in the server and and that are open
-    #If that result is cached we will take it form there, if not we will make the 
-
-    
-    #enter a tournament
-    #1. enter a tournament given a tournament id.
-    #2. If user already entered return feedback
-    #3. If tournament has started do not enter and feedback
-    #4. Since the join command works by having the tournament id, there could be a scenario where 2 people from different servers join a tournament and get paired against each other. To join a tournament the user should be a member of the server of where the tournament was created. If they are not they should not be allowed to join the tournament
-    #5. if failure inform
-
+async def join_by_id(ctx, t_id: int):     
+    #join w/ database id, shouldnt be used i think
     data = {
         'tournament_id' : t_id,
         'username': str(ctx.author),
@@ -144,9 +167,8 @@ async def join(ctx, t_id: int):
             response = f'{ctx.author} is already registered'
         else:
             response =f'Error, please try again'
-
+    
     await ctx.send(response)
-
 
 @client.command()
 async def drop(ctx, t_id:int): #drop from a tournament information
@@ -367,6 +389,7 @@ async def end(ctx, t_id):
     await ctx.send(message)
     pass
 
+
 @client.command()
 async def standing(ctx, t_id:int): #optional top N people display top N
 
@@ -390,7 +413,7 @@ async def standing(ctx, t_id:int): #optional top N people display top N
 
 
     #Check function for wait_for to make it respond only to user
-    def check(message):
+    def check(ctx, message):
         return message.author == ctx.author and ctx.channel==message.channel
 
     #get a response to the prompt
@@ -468,6 +491,7 @@ async def standing(ctx, t_id:int): #optional top N people display top N
 
 
 
+
 #QOL commands 
 
 
@@ -495,8 +519,12 @@ async def waiting(ctx, t_id:int):
     pass
 
 
+#Testing_ground
 
+@client.command()
+async def join(ctx,client=client):
 
+    await join_t(ctx,client=client)
 
 
     
