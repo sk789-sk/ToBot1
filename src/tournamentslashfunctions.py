@@ -270,7 +270,7 @@ async def next_round_slash(interaction:discord.Interaction,client:commands.Bot  
         data = r.json()
 
         if len(data) == 0:
-            await interaction.response.send_message(f'{interaction.guild} has no tournaments underway. Use /start command if starting a tournament', ephemeral=True)
+            await interaction.response.send_message(f'{interaction.guild.name} has no tournaments underway. Use /start command if starting a tournament', ephemeral=True)
             return
 
         elif len(data) ==1:
@@ -344,8 +344,45 @@ async def next_round_slash(interaction:discord.Interaction,client:commands.Bot  
             await interaction.response.send_message('Error creating next round pairings, please try again')
 
 
-async def end_slash():
-    pass
+async def end_slash(interaction:discord.Interaction,client:commands.Bot):
+    guild_id = interaction.guild_id 
+    status = 'Underway'
+    
+    r = requests.get(f'http://127.0.0.1:5556/returntournaments/{guild_id}/{status}')
+
+    if r.ok:
+        data = r.json()
+
+        if len(data) == 0:
+            await interaction.response.send_message(f'{interaction.guild.name} has no tournaments underway')
+            return
+        elif len(data) == 1:
+            t_id = data[0]['id']
+        else:
+            t_list = [discord.SelectOption(label=f'{tournament["name"]}', value=tournament['id'] ) for tournament in data]
+
+            await interaction.response.send_message("", view=dropdownView(options=t_list), ephemeral=True)            
+            
+            try:
+                interaction = await client.wait_for('interaction', timeout=30.0)
+                t_id = interaction.data["values"][0]
+
+            except asyncio.TimeoutError:
+                await interaction.response.send_message("Timed out, please try again")        
+    else:
+        await interaction.response.send_message("Unable to retreive tournaments, use prefix command or try again", ephemeral=True)
+        return
+
+    #Ending Tourney
+    r_end = requests.get(f'http://127.0.0.1:5556/end/{t_id}')
+
+    if r_end.ok:
+        message = f'Results have been finalized, use /standing to view results'
+    else:
+        message = f'something went wrong'
+
+    await interaction.response.send_message(message)
+
 
 async def standings_slash():
     pass
