@@ -5,7 +5,8 @@ import asyncio
 import discord 
 from discord.ext import commands
 
-from cache import tournament_cache, set_cache, get_cache_data , start_cache_timer
+from cache import *
+#tournament_cache, set_cache, get_cache_data , start_cache_timer
 from bot_ui_models import dropdownView
 
 
@@ -53,6 +54,7 @@ async def join_slash_t(interaction:discord.Interaction,client:commands.Bot):
 
         if r.ok:
             response = f'{interaction.user.name} sucessfully registerd for tournament name'
+            await interaction.response.send_message(response)
         else:
             if r.status_code == 403:
                 response = f'Tournament is underway, unable to join'
@@ -61,9 +63,90 @@ async def join_slash_t(interaction:discord.Interaction,client:commands.Bot):
             else:
                 response = f'Error, please try again. If error persists contact ___'
         
-        await interaction.response.send_message(response, ephemeral=True)
+            await interaction.response.send_message(response, ephemeral=True)
 
     except asyncio.TimeoutError:
         await interaction.response.send_message('Timed out. Try again', ephemeral=True)
 
+
+async def create_slash(interaction:discord.Interaction,client:commands.Bot, name, game, format): 
+
+    data = {
+        'name': name,
+        'game': game,
+        'format': format,
+        'creator': interaction.user.id,
+        'guild_id': interaction.guild_id
+    }
+
+    headers = {'Content-Type': 'application/json'}
+    r = requests.post('http://127.0.0.1:5556/Create', json=data)
+    
+    if r.ok:
+        response = f'Tournament Created Successfully'
+        await reset_cache(tournament_cache,interaction.guild_id)
+
+    else:
+        response = f'Failed to create'
+    
+    await interaction.response.send_message(response)
+
+async def drop_slash(interaction:discord.Interaction,client:commands.Bot):
+    user_id = interaction.user.id 
+    guild_id = interaction.guild_id
+
+    r = requests.get(f'http://127.0.0.1:5556/joinedtournaments/{user_id}/{guild_id}')
+
+    if r.ok:
+        data = []
+        for tournament in r.json():
+            data.append(discord.SelectOption(label=f'{tournament["name"]}   Game: {tournament["game"]}    Format:{tournament["format"]}', value=tournament["id"],description=tournament['name']))
+
+        await interaction.response.send_message("",view=dropdownView(options=data), ephemeral=True)
+    
+        try:
+            interaction = await client.wait_for('interaction', timeout=30.0)
+
+            t_id = int(interaction.data["values"][0])
+            
+            data = {
+            'tournament_id' : t_id,
+            'discord_id' : int(interaction.user.id)
+            }
+
+            headers = {'Content-Type': 'application/json'}
+            r = requests.post(f'http://127.0.0.1:5556/Drop/{t_id}', json=data)
+
+            if r.ok:
+                response = f'{interaction.user.name} dropped sucessfully'
+                await interaction.response.send_message(response)
+            else:
+                response = f'Error'
+                await interaction.response.send_message(response,ephemeral=True)
+
+
+
+        except asyncio.TimeoutError:
+            await interaction.response.send_message('Timed out. Try again', ephemeral=True)
+        
+    else:
+        message = 'Unable to fetch joined tournaments. Use prefix drop command with tournament id instead or try again'
+        await interaction.response.send_message(message, ephemeral=True)
+
+
+
+async def start_slash():
+    pass
+
+async def loss_slash():
+    pass
+
+async def next_round_slash():
+    pass
+
+async def end_slash():
+    pass
+
+async def standings_slash():
+    pass
 

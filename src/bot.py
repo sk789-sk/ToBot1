@@ -11,9 +11,11 @@ from botHelperfunctions import create_table
 from cache import tournament_cache, set_cache
 
 from wip_bot_commands import join_t
-from tournamentslashfunctions import join_slash_t
+from tournamentslashfunctions import * 
+
 
 load_dotenv()
+
 
 intents = discord.Intents.default()
 intents.message_content = True 
@@ -61,10 +63,6 @@ test_guild = 1178775700573012038
 @client.tree.command(name='hello')
 async def hello(interaction:discord.Interaction):
     await interaction.response.send_message("hello!", ephemeral=True)
-    
-    val = rd.choice(['rock', 'paper', 'scissors'])    
-
-    await interaction.response.send_message(val, ephemeral=True)
 
 @client.tree.command(name='rps')
 async def rps(interaction:discord.Interaction):
@@ -78,13 +76,31 @@ async def joinslasht(interaction:discord.Interaction):
 
 @client.tree.command(name='create', description='Create a tournament')
 async def createslasht(interaction:discord.Interaction, name: str, game: str, format: str='Swiss'):
-    await interaction.response.send_message('test')
-    pass
+    await create_slash(interaction,client, name, game , format )
+    
+@client.tree.command(name='drop', description='Drop from a tournament')
+async def dropslash(interaction:discord.Interaction):
+    await drop_slash(interaction,client)
 
+@client.tree.command(name='start', description='Start a tournament')
+async def startslash(interaction:discord.Interaction):
+    await interaction.response.send_message('testdrop')
 
+@client.tree.command(name='loss', description='Report a loss')
+async def lossslash(interaction:discord.Interaction):
+    await interaction.response.send_message('testdrop')
 
+@client.tree.command(name='next_round', description='Start the next round')
+async def nextroundslash(interaction:discord.Interaction):
+    await interaction.response.send_message('testdrop')
 
+@client.tree.command(name='end', description='End a tournament')
+async def nextroundslash(interaction:discord.Interaction):
+    await interaction.response.send_message('testdrop')
 
+@client.tree.command(name='standings', description='Get the Standings')
+async def nextroundslash(interaction:discord.Interaction):
+    await interaction.response.send_message('testdrop')
 
 
 
