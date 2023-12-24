@@ -12,7 +12,9 @@ from bot_ui_models import dropdownView
 
 async def join_slash_t(interaction:discord.Interaction,client:commands.Bot): 
     if tournament_cache.get(interaction.guild_id) is None:
-        r = requests.get(f'http://127.0.0.1:5556//returntournaments/{interaction.guild_id}')
+        status = 'Initialized'
+
+        r = requests.get(f'http://127.0.0.1:5556//returntournaments/{interaction.guild_id}/{status}')
         data = []
         if r.ok:
             #Create a list of discord.Select_Options
@@ -132,6 +134,7 @@ async def drop_slash(interaction:discord.Interaction,client:commands.Bot):
         await interaction.response.send_message(message, ephemeral=True)
 
 async def start_slash(interaction:discord.Interaction,client:commands.Bot):
+    #Case where there are no tournaments needs to be added
     
     if tournament_cache.get(interaction.guild_id) is None:
         r = requests.get(f'http://127.0.0.1:5556//returntournaments/{interaction.guild_id}')
@@ -225,7 +228,7 @@ async def loss_slash(interaction:discord.Interaction,client:commands.Bot):
                 'discord_id' : user_id
             }
         else:
-            t_list = [discord.SelectOption(discord.SelectOption(label=f'{tournament["name"]}', value=tournament['id'] )) for tournament in data]
+            t_list = [discord.SelectOption(label=f'{tournament["name"]}', value=tournament['id'] ) for tournament in data]
 
             await interaction.response.send_message("", view=dropdownView(options=t_list), ephemeral=True)
 
@@ -257,10 +260,89 @@ async def loss_slash(interaction:discord.Interaction,client:commands.Bot):
     
     await interaction.response.send_message(response)
 
+async def next_round_slash(interaction:discord.Interaction,client:commands.Bot  ):
+    guild_id = interaction.guild_id
+    status = 'Underway'
 
+    r = requests.get(f'http://127.0.0.1:5556//returntournaments/{guild_id}/{status}')
+    
+    if r.ok:
+        data = r.json()
 
-async def next_round_slash():
-    pass
+        if len(data) == 0:
+            await interaction.response.send_message(f'{interaction.guild} has no tournaments underway. Use /start command if starting a tournament', ephemeral=True)
+            return
+
+        elif len(data) ==1:
+            t_id = data[0]['id']
+        else:
+            t_list = [discord.SelectOption(label=f'{tournament["name"]}',value=tournament['id']) for tournament in data]
+            await interaction.response.send_message("", view=dropdownView(options=t_list), ephemeral=True)
+
+            try:
+                interaction = await client.wait_for('interaction', timeout=30.0)
+                t_id = interaction.data["values"][0]
+            except asyncio.TimeoutError:
+                await interaction.response.send_message("Timed out, please try again")
+    else:
+        await interaction.response.send_message('Issue retreiving tournament information, use prefix command or try again', ephemeral=True)
+        return
+    
+    r_next_round = requests.get(f'http://127.0.0.1:5556/Generate_Matches/{t_id}')
+
+    if r_next_round.ok:
+        data = r_next_round.json()
+        message = "Pairings for next round: \n"
+
+        for match in data:
+            try:
+
+                if match['player_2'] is not None:
+
+                    P1 = match['player_1']['discord_id']
+                    P2 = match['player_2']['discord_id']
+
+                    user_1 = await client.fetch_user(P1)
+                    user_2 = await client.fetch_user(P2)
+
+                    m1 = f'Your opponent is {user_2.name}'
+                    m2 = f'Your opponent is {user_1.name}'
+
+                    await user_1.send(m1)
+                    await user_2.send(m2)
+
+                    message += f'\n{user_1.mention} vs {user_2.mention}'
+                else:
+                    P1 = match['player_1']['discord_id']
+                    user_1 = await client.fetch_user(P1)
+                    m1 = f'You have a bye for the round'
+                    await user_1.send(m1)
+                    message += f'\n{user_1.mention} received a bye'
+            
+            except:
+                await interaction.response.send_message('Error displaying matches', ephemeral=True)
+
+        await interaction.response.send_message(message)
+    else:
+        if r_next_round.status_code == 409:
+            data = r_next_round.json()
+
+            message = "Awaiting the Results of the following Matches: \n"
+
+            for match in data:
+                P1 = match['player_1']['discord_id']
+                P2 = match['player_2']['discord_id']
+
+                user_1 = await client.fetch_user(P1)
+                user_2 = await client.fetch_user(P2)
+
+                message += f'\n {user_1.name} vs {user_2.name}'
+
+            await interaction.response.send_message(message)
+        
+        else:
+            await interaction.response.send_message('Error creating next round pairings, please try again')
+
 
 async def end_slash():
     pass

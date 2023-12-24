@@ -46,19 +46,11 @@ async def on_ready():
     try:
         synched = await client.tree.sync()
         print(f"synched with {len(synched)} commands")
-        print(f'{synched}')
     except Exception as e:
         print(e)
 
     #Test slash commands
     test_guild = 1178775700573012038
-
-    # await client.application_command_create(test_guild, "rps", "Play rock-paper-scissors")
-
-
-    #on_ready() is an event thats is within the client library and is called when the bot has logged in. 
-        
-test_guild = 1178775700573012038
 
 @client.tree.command(name='hello')
 async def hello(interaction:discord.Interaction):
@@ -88,7 +80,7 @@ async def startslash(interaction:discord.Interaction):
 
 @client.tree.command(name='loss', description='Report a loss')
 async def lossslash(interaction:discord.Interaction):
-    await interaction.response.send_message('testdrop')
+    await loss_slash(interaction,client)
 
 @client.tree.command(name='next_round', description='Start the next round')
 async def nextroundslash(interaction:discord.Interaction):
