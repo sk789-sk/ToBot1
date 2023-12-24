@@ -84,7 +84,7 @@ async def dropslash(interaction:discord.Interaction):
 
 @client.tree.command(name='start', description='Start a tournament')
 async def startslash(interaction:discord.Interaction):
-    await interaction.response.send_message('testdrop')
+    await start_slash(interaction,client)
 
 @client.tree.command(name='loss', description='Report a loss')
 async def lossslash(interaction:discord.Interaction):

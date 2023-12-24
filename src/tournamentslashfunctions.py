@@ -23,7 +23,8 @@ async def join_slash_t(interaction:discord.Interaction,client:commands.Bot):
             await start_cache_timer(tournament_cache,interaction.guild.id)
 
         else:
-            message = 'Cannot fetch tournaments'
+            await interaction.response.send_message("Cannot fetch tournaments, use prefix command with tournament id")
+            return
     else:
         options_list = await get_cache_data(tournament_cache,interaction.guild_id)
     
@@ -36,10 +37,7 @@ async def join_slash_t(interaction:discord.Interaction,client:commands.Bot):
     try:
         interaction = await client.wait_for('interaction', timeout=30.0)
          #check=check_interaction
-        print(interaction)
-
         t_id = int(interaction.data["values"][0])
-        print(interaction.data)
 
         #We have the id of the tournament we wish to join and now we have to actually join it.
 
@@ -133,10 +131,79 @@ async def drop_slash(interaction:discord.Interaction,client:commands.Bot):
         message = 'Unable to fetch joined tournaments. Use prefix drop command with tournament id instead or try again'
         await interaction.response.send_message(message, ephemeral=True)
 
+async def start_slash(interaction:discord.Interaction,client:commands.Bot):
+    
+    if tournament_cache.get(interaction.guild_id) is None:
+        r = requests.get(f'http://127.0.0.1:5556//returntournaments/{interaction.guild_id}')
+        data = []
+        if r.ok:
+            #Create a list of discord.Select_Options
+            for tournament in r.json():
+                data.append(discord.SelectOption(label=f'{tournament["name"]}   Game: {tournament["game"]}    Format:{tournament["format"]}', value=tournament["id"],description=tournament['name']))
+
+            options_list = await set_cache(tournament_cache,interaction.guild_id,data)
+            await start_cache_timer(tournament_cache,interaction.guild.id)
+
+        else:
+            await interaction.response.send_message("Cannot fetch tournaments, use prefix command with tournament id")
+    else:
+        options_list = await get_cache_data(tournament_cache,interaction.guild_id)
+
+    await interaction.response.send_message("",view=dropdownView(options=options_list), ephemeral=True)
+
+    try:
+        interaction = await client.wait_for('interaction', timeout=30.0)
+        
+        t_id = int(interaction.data["values"][0])
+        
+        r = requests.get(f'http://127.0.0.1:5556/start/{t_id}')
+
+        if r.ok:
+            data = r.json()
+
+            await interaction.channel.send('Tournament Started, Pairings Generated')
+
+            message = "Pairings for the tournament: \n"
+
+            for match in data:
+
+                try:
+
+                    if match['player_2'] is not None:
+
+                        P1 = match['player_1']['discord_id']
+                        P2 = match['player_2']['discord_id'] if match['player_2'] else None
 
 
-async def start_slash():
-    pass
+                        user_1 = await client.fetch_user(P1)
+                        user_2 = await client.fetch_user(P2) #returns a class discord.User
+                        
+                        m1 = f'Your opponent is {user_2.name}'
+                        m2 = f'Your opponent is {user_1.name}'
+
+                        
+                        await user_1.send(m1)
+                        await user_2.send(m2)
+
+                        message += f'\n{user_1.mention} vs. {user_2.mention}'
+                    else:
+                        P1 = match['player_1']['discord_id']
+                        user_1 = await client.fetch_user(P1) 
+                        m1 = f'You have a bye for the round'
+
+                        await user_1.send(m1)
+                        message += f'\n{user_1.mention} received a bye'
+                
+                except:                
+                    await interaction.response.send_message('Error displaying matches, matches were created use DIFFERENT to show again')
+        
+            await interaction.response.send_message(message)
+        else:
+            await interaction.response.send_message('Tournament has already begun')
+
+
+    except asyncio.TimeoutError:
+        await interaction.response.send_message('Timed out. Try again', ephemeral=True)
 
 async def loss_slash():
     pass
