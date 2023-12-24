@@ -205,8 +205,59 @@ async def start_slash(interaction:discord.Interaction,client:commands.Bot):
     except asyncio.TimeoutError:
         await interaction.response.send_message('Timed out. Try again', ephemeral=True)
 
-async def loss_slash():
-    pass
+async def loss_slash(interaction:discord.Interaction,client:commands.Bot):
+    user_id = interaction.user.id 
+    guild_id = interaction.guild_id
+
+    r = requests.get(f'http://127.0.0.1:5556/joinedunderwaytournaments/{user_id}/{guild_id}')
+
+    if r.ok:
+        data = r.json()
+
+        if len(data) == 0:
+            await interaction.response.send_message(f'{interaction.user.name} is not in any active tournament', ephemeral=True)
+            return
+        
+        elif len(data) == 1:
+            t_id = data[0]['id']
+            data = {
+                'tournament_id' : t_id,
+                'discord_id' : user_id
+            }
+        else:
+            t_list = [discord.SelectOption(discord.SelectOption(label=f'{tournament["name"]}', value=tournament['id'] )) for tournament in data]
+
+            await interaction.response.send_message("", view=dropdownView(options=t_list), ephemeral=True)
+
+            try:
+                interaction = await client.wait_for('interaction', timeout=30.0)
+                t_id = interaction.data["values"][0]
+
+                data = {
+                    'tournament_id': t_id,
+                    'discord_id' : user_id
+                }
+
+            except asyncio.TimeoutError:
+                await interaction.response.send_message("Timed out, please try again")
+    else:
+        await interaction.response.send_message("Unable to retreive tournaments, use prefix command or try again", ephemeral=True)
+        return
+    
+    #Update Match on Database and provide feedback.
+
+    r_update = requests.patch(f'http://127.0.0.1:5556/UpdateMatch', json=data)
+
+    if r_update.ok:
+        response = f'{interaction.user.name} loss reported sucessfully'
+    elif r_update.status_code == 409:
+        response = f'Match Result has already been reported'
+    else:
+        response = f'Error, please try again'
+    
+    await interaction.response.send_message(response)
+
+
 
 async def next_round_slash():
     pass

@@ -3,8 +3,7 @@ import asyncio
 
 
 import discord 
-import discord.ext
-# from discord.ext import commands
+from discord.ext import commands
 
 from cache import tournament_cache, set_cache, get_cache_data
 from bot_ui_models import dropdownView
@@ -16,7 +15,6 @@ from bot_ui_models import dropdownView
     #We look for tournaments that were created in the server and and that are open
     #If that result is cached we will take it form there, if not we will make the 
 
-discord.ext.commands
 
 async def join_t(ctx,client): 
 

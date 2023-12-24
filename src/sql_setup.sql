@@ -51,3 +51,20 @@ WHERE id <=5;
 UPDATE Tournaments
 SET current_round = 1
 where id=2;
+
+
+
+INSERT INTO 'Entrants" (username, point_total, tournament_id) VALUES ('Kerem' , 12, 6)
+INSERT INTO "Entrants" (username, point_total, tournament_id) VALUES ('Leon' , 9, 6);
+INSERT INTO "Entrants" (username, point_total, tournament_id) VALUES  ('Goris' ,9, 6);
+INSERT INTO "Entrants" (username, point_total, tournament_id) VALUES ('Kata', 9 ,6);
+INSERT INTO "Entrants" (username, point_total, tournament_id) VALUES ('ronka' 9 ,6);
+INSERT INTO "Entrants" (username, point_total, tournament_id) VALUES ('lopez',6,6);
+INSERT INTO "Entrants" (username, point_total, tournament_id,dropped) VALUES ('ariel',3,6,1);
+INSERT INTO "Entrants" (username, point_total, tournament_id) VALUES ('elvis', 3, 6);
+INSERT INTO "Entrants" (username, point_total, tournament_id) VALUES ('Cheng',3,6);
+INSERT INTO "Entrants" (username, point_total, tournament_id) VALUES ('shams',3,6);
+INSERT INTO "Entrants" (username, point_total, tournament_id) VALUES ('Uruena',0,6);
+INSERT INTO "Entrants" (username, point_total, tournament_id) VALUES ('kenny',0,6);
+
+INSERT INTO "Matches" (result,round,tournament,player_1_id,player_2_id) Values (,,6,,);
