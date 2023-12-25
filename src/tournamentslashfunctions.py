@@ -6,6 +6,7 @@ import discord
 from discord.ext import commands
 
 from cache import *
+from botHelperfunctions import create_table
 #tournament_cache, set_cache, get_cache_data , start_cache_timer
 from bot_ui_models import dropdownView
 
@@ -260,7 +261,7 @@ async def loss_slash(interaction:discord.Interaction,client:commands.Bot):
     
     await interaction.response.send_message(response)
 
-async def next_round_slash(interaction:discord.Interaction,client:commands.Bot  ):
+async def next_round_slash(interaction:discord.Interaction,client:commands.Bot):
     guild_id = interaction.guild_id
     status = 'Underway'
 
@@ -343,7 +344,6 @@ async def next_round_slash(interaction:discord.Interaction,client:commands.Bot  
         else:
             await interaction.response.send_message('Error creating next round pairings, please try again')
 
-
 async def end_slash(interaction:discord.Interaction,client:commands.Bot):
     guild_id = interaction.guild_id 
     status = 'Underway'
@@ -384,6 +384,67 @@ async def end_slash(interaction:discord.Interaction,client:commands.Bot):
     await interaction.response.send_message(message)
 
 
-async def standings_slash():
-    pass
+async def standings_slash(interaction:discord.Interaction,client:commands.Bot):
+    #Standings mid tournament worth looking at Im just gonna do it for finished and can have a seperate command for mid if wanted
+
+    guild_id = interaction.guild_id
+    status = 'Finalized'
+
+    r = requests.get(f'http://127.0.0.1:5556/returntournaments/{guild_id}/{status}')
+
+    if r.ok:
+        data = r.json()
+        if len(data) == 0:
+            await interaction.response.send_message(f'{interaction.guild.name} has no completed tournaments.', ephemeral=True)
+            return
+        else:
+            t_list = [discord.SelectOption(label=f'{tournament["name"]}', value=tournament['id'] ) for tournament in data]
+
+            await interaction.response.send_message("", view=dropdownView(options=t_list), ephemeral=True)
+            
+            try:
+                interaction = await client.wait_for('interaction', timeout=30.0)
+                
+                t_id = interaction.data["values"][0]
+
+            except asyncio.TimeoutError:
+                await interaction.response.send_message("Timed out, please try again") 
+    else:
+        await interaction.response.send_message("Error getting tournament information, please try again", ephemeral=True)
+        return
+    
+    tb_metrics = [
+        discord.SelectOption(label=f'Konami Standard: Opponents win Percentage',value='SOS,SOSOS',description='Tie-Breaker Options') , 
+        discord.SelectOption(label=f'1. BucholzCut1, 2. Median Bucholz', value='BucholzCut1,medianBucholz', description='Tie-Breaker Options')
+    ]
+    #. Konami Standard SOS, SOSOS
+    #. BucholzCut1, medianBucholz 
+    
+
+    await interaction.response.edit_message(view=dropdownView(options=tb_metrics, placeholder='Select TieBreaker Metrics'))
+   
+    try:
+        interaction = await client.wait_for('interaction', timeout=30.0)
+    except asyncio.TimeoutError:
+        await interaction.response.send_message("Timed out, please try again")
+    
+    tiebreaker = interaction.data["values"][0].split(',')
+
+    print(t_id, tiebreaker)
+
+    standings_payload = {
+        'tournament' : t_id,
+        'filter_parameters' : tiebreaker
+    }
+
+
+    r_standings = requests.post(f'http://127.0.0.1:5556/Standings/{t_id}', json=standings_payload)
+
+    if r_standings.ok:
+        message = create_table(r_standings.json(), header= ['Rank', 'Player','Points',tiebreaker[0],tiebreaker[1]],tiebreaker_metrics=tiebreaker)        
+    else:
+        message = 'Issue retreiving tournament results'
+
+    await interaction.response.send_message(content=f'```\n{message}\n```')
+
 

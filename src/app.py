@@ -320,7 +320,9 @@ def get_standings(t_id):
     elif request.method =='POST':
 
         data = request.get_json()
+        
         standings = CreateStandings(t_id, *data['filter_parameters'])
+        print(standings)
         standings_list = []
 
         for player in standings:
@@ -342,16 +344,6 @@ def return_joined_inGuild(user_id,guild_id):
     response = make_response(jsonify(tournament_list),200)
     return response
 
-# @app.route('/joinedtournaments/<int:user_id>/<int:guild_id>')
-# def return_joined_inGuild(user_id,guild_id):
-
-#     joined_tournaments = db.session.query(Tournament).join(Entrant, Entrant.tournament_id==Tournament.id).filter(Entrant.discord_id==user_id,Tournament.status != 'Finalized',Tournament.guild_id==guild_id).all()
-
-#     tournament_list = [tournament.to_dict() for tournament in joined_tournaments]
-
-#     response = make_response(jsonify(tournament_list),200)
-#     return response
-
 @app.route('/joinedunderwaytournaments/<int:user_id>/<int:guild_id>')
 def return_joined_underway_inGuild(user_id,guild_id):
 
@@ -361,7 +353,17 @@ def return_joined_underway_inGuild(user_id,guild_id):
 
     response = make_response(jsonify(tournament_list),200)
     return response
+ 
 
+@app.route('/returntournaments/<int:guild_id>/<string:status>')
+def guilds_tournaments(guild_id,status):
+
+    init_tournaments = Tournament.query.filter(Tournament.guild_id==guild_id,Tournament.status==status).all()
+
+    tournament_list = [tournament.to_dict() for tournament in init_tournaments]
+
+    response = make_response(jsonify(tournament_list),200)
+    return response
 
 @app.route('/returnMatches/<int:t_id>')
 def return_all(t_id):
@@ -371,16 +373,7 @@ def return_all(t_id):
         match_list.append(match.to_dict())
 
     response = make_response(jsonify(match_list),200)
-    return response   
-
-@app.route('/returntournaments/<int:guild_id>')
-def guilds_tournaments(guild_id):
-
-    init_tournaments = Tournament.query.filter(Tournament.guild_id==guild_id,Tournament.status=='Initialized').all()
-    tournament_list = [tournament.to_dict() for tournament in init_tournaments]
-    response = make_response(jsonify(tournament_list),200)
-
-    return response
+    return response 
 
 if __name__ == '__main__':
 

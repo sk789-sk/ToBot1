@@ -84,15 +84,16 @@ async def lossslash(interaction:discord.Interaction):
 
 @client.tree.command(name='next_round', description='Start the next round')
 async def nextroundslash(interaction:discord.Interaction):
-    await interaction.response.send_message('testdrop')
+    await next_round_slash(interaction,client)
 
 @client.tree.command(name='end', description='End a tournament')
-async def nextroundslash(interaction:discord.Interaction):
-    await interaction.response.send_message('testdrop')
+async def endslash(interaction:discord.Interaction):
+    await end_slash(interaction,client)
 
 @client.tree.command(name='standings', description='Get the Standings')
-async def nextroundslash(interaction:discord.Interaction):
-    await interaction.response.send_message('testdrop')
+async def standingslash(interaction:discord.Interaction):
+    await standings_slash(interaction,client)
+
 
 
 
@@ -421,7 +422,8 @@ async def standing(ctx, t_id:int): #optional top N people display top N
 
 
     #Check function for wait_for to make it respond only to user
-    def check(ctx, message):
+
+    def check(message):
         return message.author == ctx.author and ctx.channel==message.channel
 
     #get a response to the prompt
