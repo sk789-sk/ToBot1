@@ -258,8 +258,14 @@ def generate_matches(t_id):
     #. There are no unfinished matches so we run the function to create the next set of matches. the function also updates the tournament state. Need to add error handling for this Bipartite Function
 
     else:
-        matches = BiPartiteMatchMaking(t_id) 
-        response = make_response(jsonify(matches),200)
+
+        #check if there ar any more rounds:
+
+        if round_check < tourney.total_round:
+            matches = BiPartiteMatchMaking(t_id) 
+            response = make_response(jsonify(matches),200)
+        else:
+            response = make_response({},418)
     
     return response
 

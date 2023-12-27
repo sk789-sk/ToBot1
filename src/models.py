@@ -28,6 +28,7 @@ class Tournament(db.Model, SerializerMixin):
     created_at = db.Column(db.DateTime(timezone=True), default= db.func.now())
     status = db.Column(db.String) #Not yet started, in progress, completed
     current_round = db.Column(db.Integer, default = 0)
+    total_round = db.Column(db.Integer)
     creator = db.Column(db.BigInteger) 
     guild_id = db.Column(db.BigInteger)
 

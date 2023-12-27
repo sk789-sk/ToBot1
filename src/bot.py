@@ -67,8 +67,8 @@ async def joinslasht(interaction:discord.Interaction):
     await join_slash_t(interaction,client)
 
 @client.tree.command(name='create', description='Create a tournament')
-async def createslasht(interaction:discord.Interaction, name: str, game: str, format: str='Swiss'):
-    await create_slash(interaction,client, name, game , format )
+async def createslasht(interaction:discord.Interaction, name: str, game: str):
+    await create_slash(interaction,client, name, game)
     
 @client.tree.command(name='drop', description='Drop from a tournament')
 async def dropslash(interaction:discord.Interaction):
@@ -531,10 +531,6 @@ async def waiting(ctx, t_id:int):
 
 #Testing_ground
 
-@client.command()
-async def join(ctx,client=client):
-
-    await join_t(ctx,client=client)
 
 
     

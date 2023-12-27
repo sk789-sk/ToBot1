@@ -3,6 +3,7 @@ from itertools import combinations
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import random
+from math import log2, ceil
 
 from flask import Flask, make_response
 from sqlalchemy.exc import SQLAlchemyError
@@ -13,6 +14,7 @@ from sqlalchemy import or_, desc
 
 from config import app, db
 from models import Match , Entrant , Tournament
+from Bracket_Gen_Classes import next_power_of_2, build_single_elimination_bracket, display_bracket_DFS, display_bracket_BFS
 
 def CreateMatches(tourney_id):
     #given a graph of the tournament
@@ -70,9 +72,6 @@ def CreateMatches(tourney_id):
         db.session.commit()
 
     return pairings
-
-
-
 
 def BiPartiteMatchMaking(tourney_id):
     #matchmaking by bipartite matching, break sets of players into 2 groups for player 1 and player 2
@@ -215,9 +214,6 @@ def BiPartiteMatchMaking(tourney_id):
 
     return match_list
 
-# BiPartiteMatchMaking(1)
-
-
 def startTournament(tourney_id):
     #Start the tournament which would then create the initial matches.
     #We pass in a list of entrants and create the initial graph
@@ -230,8 +226,15 @@ def startTournament(tourney_id):
         entrants = Entrant.query.filter(Entrant.tournament_id==tourney_id).all()
         tourney_info = Tournament.query.filter(Tournament.id == tourney_id).first()
 
+    #Calculate the number of rounds in the tournament
 
-    
+    if tourney_info.status == 'Swiss':
+        round_total = ceil(log2(len(entrants)))
+    elif tourney_info.status == 'Round Robin':
+        round_total = len(entrants) - 1
+
+
+
     #2. Add the entrants to the tournament
     
     tourney_graph = nx.Graph() 
@@ -295,11 +298,9 @@ def startTournament(tourney_id):
     
     tourney_info.current_round = 1
     tourney_info.status = 'Underway'
-    # update_list += matches 
-    # update_list += tourney_info
+    tourney_info.total_round = round_total
 
     with app.app_context():
-        print(matches)
 
         try:
             db.session.add_all(matches + [tourney_info] +[val])
@@ -441,9 +442,46 @@ def CreateStandings(tournament_id, *args):
 
     return(ordered_entrants)
 
-#If I wanted to run a round-robin tournament I could do this the same way as a swiss tournament except it would just run for n-1 rounds. The way the matching algorithm works it would prioritize people that havent played each other so it would run until everybody has played each other. 
+def startSingleElim(tournament_id):
+    #Create a single Elimination bracket from entrants
+    #Steps: 
+    # 1. Return the list of entrants in the tournament. 
+    # 2. Check that the value of entrants is a power of 2. If not add dummy entrants(aka None) to the entrant list. Matches against dummies are byes. Inser the dummies in between actual entrants to ensure we dont have dummy vs dummy and byes that will occur in the later rounds
+    # 3. Take the entrants list and turn them into matches/leaf nodes. These matches are leaf nodes for a binary tree.
+    # 4. Construct the tree from the list of matches. This can be done recursively until the length of the matches is equal to 1 and that is the root and championshipnode. 2 leaf nodes are used to create a parent node and this parent is a new match. We can actually do this in 1 pass by adding the created parent nodes to the end of the list
+    # 5. Add these matches to the database, and then fill out the database_id field for each tree node.
+    # 5. Traverse the tree from the root node to all the leafs to then update the next_match_id field* for the matches in the database. For matches where I dont have id's it would ideally be nice to see winner of _id in place. 
 
-        
+    with app.app_context():
+        entrants = Entrant.query.filter(Entrant.tournament_id == tournament_id).all()
+        Tourney = Tournament.query.filter(Tournament.id == tournament_id).first()
+    
+    random.shuffle(entrants)
+    byes_needed = next_power_of_2(len(entrants)) - len(entrants)
+    new_entrants = []
+    while byes_needed >0:
+        new_entrants.append(entrants.pop(0))
+        new_entrants.append(None)
+        byes_needed -=1
+    new_entrants.extend(entrants)
+    print(new_entrants)
+
+    #Create the initial matches aka leafs
+
+    matches = []
+
+    root = build_single_elimination_bracket(new_entrants,6)
+
+    print(root.left, root.right)
+    
+    display_bracket_DFS(root)
+
+    display_bracket_BFS(root)
+
+def startDoubleElim(tournament_id):
+    pass
+
+
 def testouter(t_id,disc_id):
 
 
@@ -468,5 +506,5 @@ def testouter(t_id,disc_id):
 
 
 if __name__ == "__main__":
-    CreateStandings(6)
+    startSingleElim(6)
     pass

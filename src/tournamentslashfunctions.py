@@ -19,8 +19,8 @@ async def join_slash_t(interaction:discord.Interaction,client:commands.Bot):
         data = []
         if r.ok:
             #Create a list of discord.Select_Options
-            for tournament in r.json():
-                data.append(discord.SelectOption(label=f'{tournament["name"]}   Game: {tournament["game"]}    Format:{tournament["format"]}', value=tournament["id"],description=tournament['name']))
+
+            data = [discord.SelectOption(label=f'{tournament["name"]}   Game: {tournament["game"]}    Format:{tournament["format"]}', value=tournament["id"],description=tournament['name']) for tournament in r.json()]
 
             options_list = await set_cache(tournament_cache,interaction.guild_id,data)
             await start_cache_timer(tournament_cache,interaction.guild.id)
@@ -70,12 +70,23 @@ async def join_slash_t(interaction:discord.Interaction,client:commands.Bot):
         await interaction.response.send_message('Timed out. Try again', ephemeral=True)
 
 
-async def create_slash(interaction:discord.Interaction,client:commands.Bot, name, game, format): 
+async def create_slash(interaction:discord.Interaction,client:commands.Bot, name, game):   #I should modify this so that the format bit has a dropdown of formats that are supported. 
+    formats = ['Swiss', 'Round Robin', 'Single Elimination', 'Double Elimination']    
+
+    dropdown_vals = [discord.SelectOption(label=format, value=format) for format in formats]
+
+    await interaction.response.send_message("",view=dropdownView(options=dropdown_vals), ephemeral=True)
+    
+    try:
+        interaction = await client.wait_for('interaction', timeout=30.0)
+        selected_format = interaction.data["values"][0]
+    except asyncio.TimeoutError:
+        await interaction.response.send_message("Timed Out")
 
     data = {
         'name': name,
         'game': game,
-        'format': format,
+        'format': selected_format,
         'creator': interaction.user.id,
         'guild_id': interaction.guild_id
     }
@@ -340,7 +351,9 @@ async def next_round_slash(interaction:discord.Interaction,client:commands.Bot):
                 message += f'\n {user_1.name} vs {user_2.name}'
 
             await interaction.response.send_message(message)
-        
+        elif r_next_round.status_code == 418:
+            message = 'All rounds have been completed. End the tournament and use standings to view results'
+            await interaction.response.send_message(message)
         else:
             await interaction.response.send_message('Error creating next round pairings, please try again')
 
