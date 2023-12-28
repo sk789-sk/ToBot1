@@ -14,7 +14,7 @@ from sqlalchemy import or_, desc
 
 from config import app, db
 from models import Match , Entrant , Tournament
-from Bracket_Gen_Classes import next_power_of_2, build_single_elimination_bracket, display_bracket_DFS, display_bracket_BFS
+from Bracket_Gen_Classes import next_power_of_2, build_single_elimination_bracket, display_bracket_DFS, display_bracket_BFS ,tree2db
 
 def CreateMatches(tourney_id):
     #given a graph of the tournament
@@ -449,8 +449,8 @@ def startSingleElim(tournament_id):
     # 2. Check that the value of entrants is a power of 2. If not add dummy entrants(aka None) to the entrant list. Matches against dummies are byes. Inser the dummies in between actual entrants to ensure we dont have dummy vs dummy and byes that will occur in the later rounds
     # 3. Take the entrants list and turn them into matches/leaf nodes. These matches are leaf nodes for a binary tree.
     # 4. Construct the tree from the list of matches. This can be done recursively until the length of the matches is equal to 1 and that is the root and championshipnode. 2 leaf nodes are used to create a parent node and this parent is a new match. We can actually do this in 1 pass by adding the created parent nodes to the end of the list
-    # 5. Add these matches to the database, and then fill out the database_id field for each tree node.
-    # 5. Traverse the tree from the root node to all the leafs to then update the next_match_id field* for the matches in the database. For matches where I dont have id's it would ideally be nice to see winner of _id in place. 
+    # 5. Add these matches to the database
+    # 5. Matches where the entrant wins due to a bye is automatically updated, before we send out the pairings. 
 
     with app.app_context():
         entrants = Entrant.query.filter(Entrant.tournament_id == tournament_id).all()
@@ -466,20 +466,24 @@ def startSingleElim(tournament_id):
     new_entrants.extend(entrants)
     print(new_entrants)
 
-    #Create the initial matches aka leafs
+    #Create the bracket
 
-    matches = []
+    #gu test is 6
 
-    root = build_single_elimination_bracket(new_entrants,6)
+    root = build_single_elimination_bracket(new_entrants,21)
 
     print(root.left, root.right)
     
+    tree2db(root,21)
     
     
     display_bracket_DFS(root)
     # display_bracket_BFS(root)
 
 def startDoubleElim(tournament_id):
+    #The winners side is a single elim bracket.
+    #the losers side is a single elim bracket, but in between each level there is an additional set of matches where the winners side losers go down. Basically instead of cutting the amoutn of entrants in half with each round it takes 2 rounds to do it. 
+    #We then create a match where the lft child is the winner of the winners bracket and the right hcild is the winner of the losers bracket to combine the 2 trees into 1. 
     pass
 
 

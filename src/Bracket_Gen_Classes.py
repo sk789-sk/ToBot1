@@ -1,6 +1,7 @@
 #Bracket Gen Classes
 from models import Match
 from collections import deque
+from config import app , db
 
 class TreeNode:
     #Represent each node as a match.
@@ -36,8 +37,7 @@ def build_single_elimination_bracket(player_list,t_id):
     matches = []
 
     #create initial matches
-    for x,y in zip(*[iter(player_list)]*2): 
-        #this works from documentation should figure out why
+    for x,y in zip(*[iter(player_list)]*2): #this works from documentation as a trick 
         match_leaf = TreeNode(player_1=x,player_2=y)
         matches.append(match_leaf)
     
@@ -71,9 +71,37 @@ def display_bracket_BFS(root):
         if node.right:
             queue.append((node.right)) #depth +1 
 
-def tree2db(root):
-    #We have the tree we need to convert these into database entries. 
-    pass
+def tree2db(root,t_id,parent_id=None):
+
+    #i guess we could do this where we start with the root, we add the values 
+    #We then access the children of the node which now has an id that we can use for the parent column. 
+    #I think we should do DFS traversal then. so we have the parent into child for easier referencing. 
+
+    if root:
+
+        new_Match = Match(
+            tournament = t_id,
+            result = None,
+            round = None,
+            player_1_id = root.player_1.id if root.player_1 else None,
+            player_2_id = root.player_2.id if root.player_2 else None,
+            winner_next_match_id = parent_id,
+            # loser_next_match_id = None
+        )
+
+        with app.app_context():
+            db.session.add(new_Match)
+            db.session.flush()
+            db.session.commit()
+            root.db_id = new_Match.id
+            print(root.db_id)
+
+        tree2db(root.left, t_id=t_id,parent_id=root.db_id)
+        tree2db(root.right, t_id=t_id,parent_id=root.db_id)
+    
+
+
+    return 
 
 if __name__ == "__main__":
     print(next_power_of_2(6))

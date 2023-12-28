@@ -47,6 +47,8 @@ class Tournament(db.Model, SerializerMixin):
 
 class Match(db.Model, SerializerMixin):
     __tablename__ = 'Matches'
+    
+    
     id = db.Column(db.Integer, primary_key=True)
     result = db.Column(db.Integer) #1 = P1 win, 0 = tie, 2 = P2 Win
     round = db.Column(db.Integer)
@@ -70,13 +72,15 @@ class Match(db.Model, SerializerMixin):
 
     #Single Elimination Bracket parameters
 
-    next_match_id = db.Column(db.Integer, db.ForeignKey('Matches.id')) #This is the parent node for single elim brackets
+    winner_next_match_id = db.Column(db.Integer, db.ForeignKey('Matches.id')) #This is the parent node for single elim brackets
+    # loser_next_match_id = db.Column(db.Integer, db.ForeignKey('Matches.id'))
     parent = db.relationship('Match', remote_side=[id], backref='children')
 
     #validations
     #serialization rules
 
-    serialize_rules = ('-player_1.matches_as_P1','-player_1.matches_as_P2','-player_2.matches_as_P1','-player_2.matches_as_P2')   #'-parent.children','children.parent'
+    serialize_rules = ('-player_1.matches_as_P1','-player_1.matches_as_P2','-player_2.matches_as_P1','-player_2.matches_as_P2')  
+    #'-parent.children','children.parent' will almost certainly need these as rules as well. 
 
 
     #repr
