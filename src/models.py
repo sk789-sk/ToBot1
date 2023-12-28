@@ -51,6 +51,8 @@ class Match(db.Model, SerializerMixin):
     result = db.Column(db.Integer) #1 = P1 win, 0 = tie, 2 = P2 Win
     round = db.Column(db.Integer)
 
+    
+    
     #foreign Keys
     tournament = db.Column(db.Integer, db.ForeignKey('Tournaments.id'))
     player_1_id = db.Column(db.Integer, db.ForeignKey('Entrants.id'))
@@ -58,13 +60,24 @@ class Match(db.Model, SerializerMixin):
 
     #relationships
 
-    player_1 = db.relationship('Entrant', foreign_keys = [player_1_id],) #back_populates='matches_as_P1',
-    player_2 = db.relationship('Entrant', foreign_keys = [player_2_id],) #back_populates='matches_as_P2',
+    player_1 = db.relationship('Entrant', foreign_keys = [player_1_id], backref = 'matches_as_P1') #back_populates='matches_as_P1',
+    player_2 = db.relationship('Entrant', foreign_keys = [player_2_id], backref = 'matches_as_P2') #back_populates='matches_as_P2',
 
+    #This is prob what i want should backref
 
+    # player_1 = db.relationship('Entrant', backref = 'matches_as_P1',) #back_populates='matches_as_P1',
+    # player_2 = db.relationship('Entrant', backref = 'matches_as_P2',) #back_populates='matches_as_P2',
+
+    #Single Elimination Bracket parameters
+
+    next_match_id = db.Column(db.Integer, db.ForeignKey('Matches.id')) #This is the parent node for single elim brackets
+    parent = db.relationship('Match', remote_side=[id], backref='children')
 
     #validations
     #serialization rules
+
+    serialize_rules = ('-player_1.matches_as_P1','-player_1.matches_as_P2','-player_2.matches_as_P1','-player_2.matches_as_P2')   #'-parent.children','children.parent'
+
 
     #repr
 
@@ -96,12 +109,11 @@ class Entrant(db.Model, SerializerMixin):
 
     #relationships
 
-    # matches_as_P1 = db.relationship('Match', backref = 'player_1', foreign_keys='Match.player_1_id',)
-    # matches_as_P2 = db.relationship('Match', backref = 'player_2', foreign_keys='Match.player_2_id',)
-
     @validates('point_total')
     def validate_points(self,key,point_total):
         if point_total >= 0:
             return point_total
         raise ValueError("Point total must be greater than 0")
 
+    #Entrant.matches_as_P1
+    serialize_rules = ('-Match.player_1','-Match.player_2')

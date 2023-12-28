@@ -474,9 +474,10 @@ def startSingleElim(tournament_id):
 
     print(root.left, root.right)
     
+    
+    
     display_bracket_DFS(root)
-
-    display_bracket_BFS(root)
+    # display_bracket_BFS(root)
 
 def startDoubleElim(tournament_id):
     pass

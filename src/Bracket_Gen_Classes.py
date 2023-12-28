@@ -9,7 +9,6 @@ class TreeNode:
         
         self.left = left
         self.right = right
-        self.parent = parent
         
         self.winner = winner
         self.player_1 = player_1
@@ -35,21 +34,12 @@ def next_power_of_2(n):
 
 def build_single_elimination_bracket(player_list,t_id):
     matches = []
-    DB_match_list = []
 
     #create initial matches
     for x,y in zip(*[iter(player_list)]*2): 
         #this works from documentation should figure out why
         match_leaf = TreeNode(player_1=x,player_2=y)
         matches.append(match_leaf)
-
-        db_obj = Match(
-            tournament = t_id,
-            player_1_id = None,
-            player_2_id = None
-        )
-
-        DB_match_list.append(db_obj)
     
     #create subsequent matches
     while len(matches) >1:
@@ -58,15 +48,13 @@ def build_single_elimination_bracket(player_list,t_id):
         prev_2 = matches.pop(0)
         new_match = TreeNode(player_1=None,player_2=None,left=prev_1, right= prev_2)
         matches.append(new_match)
-
-
     return matches[0] #returns the root node
 
 def display_bracket_DFS(root_node, depth = 0):
     if root_node:
-        print(" " * depth + str(root_node.value))
-        display_bracket_DFS(root_node.left)
-        display_bracket_DFS(root_node.right)
+        print(depth , (root_node.value))
+        display_bracket_DFS(root_node.left, depth+1)
+        display_bracket_DFS(root_node.right, depth+1)
 
 def display_bracket_BFS(root):
     if not root:
@@ -79,9 +67,13 @@ def display_bracket_BFS(root):
         print(f"depth: , Value: {node.value}")
 
         if node.left:
-            queue.append((node.left))
+            queue.append((node.left)) #depth +1
         if node.right:
-            queue.append((node.right))
+            queue.append((node.right)) #depth +1 
+
+def tree2db(root):
+    #We have the tree we need to convert these into database entries. 
+    pass
 
 if __name__ == "__main__":
     print(next_power_of_2(6))
