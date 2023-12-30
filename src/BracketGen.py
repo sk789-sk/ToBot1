@@ -190,10 +190,6 @@ def BiPartiteMatchMaking(tourney_id):
     #     matches.append(new_Match)
     
     #update database
-    print('haha')
-    print(update_obj_list)
-    print('hehe')
-
     match_list = []
 
     with app.app_context():
@@ -214,7 +210,8 @@ def BiPartiteMatchMaking(tourney_id):
 
     return match_list
 
-def startTournament(tourney_id):
+def startTournament_Swiss(tourney_id):
+    #This is the same method for creating RR
     #Start the tournament which would then create the initial matches.
     #We pass in a list of entrants and create the initial graph
     #would it be better to just have this only make the matches and leave all database related things to be passed into it. Instead of giving it an ID instead we would pass it a graph 
@@ -227,6 +224,8 @@ def startTournament(tourney_id):
         tourney_info = Tournament.query.filter(Tournament.id == tourney_id).first()
 
     #Calculate the number of rounds in the tournament
+
+    print(tourney_info)
 
     if tourney_info.status == 'Swiss':
         round_total = ceil(log2(len(entrants)))
@@ -456,29 +455,50 @@ def startSingleElim(tournament_id):
         entrants = Entrant.query.filter(Entrant.tournament_id == tournament_id).all()
         Tourney = Tournament.query.filter(Tournament.id == tournament_id).first()
     
+    #### RANDOM SEEDING LIST###
     random.shuffle(entrants)
     byes_needed = next_power_of_2(len(entrants)) - len(entrants)
     new_entrants = []
+    
     while byes_needed >0:
         new_entrants.append(entrants.pop(0))
         new_entrants.append(None)
         byes_needed -=1
     new_entrants.extend(entrants)
+    
     print(new_entrants)
+    ### Random Seeding List### 
 
+    ###IF ENTRANTS ARE SEEDED###
+    ###follow method created in notebook###
+    ###IF ENTRANTS ARE SEEDED###
+    
     #Create the bracket
-
-    #gu test is 6
-
-    root = build_single_elimination_bracket(new_entrants,21)
-
-    print(root.left, root.right)
+    root = build_single_elimination_bracket(new_entrants,tournament_id)
     
-    tree2db(root,21)
+    #Transfer bracket to db
+    tree2db(root,tournament_id)
+    display_bracket_DFS(root)   
     
+
+
+    Tourney.status = 'Underway'
+
+    #Get the Matches
+
+    with app.app_context():
+        init_matches = Match.query.filter(Match.tournament==tournament_id,Match.result == None,Match.player_1_id != None,Match.player_2_id != None).all()
+
+        db.session.add(Tourney)
+        db.session.commit()
+        
+        print(init_matches)
+
+        match_list = [match.to_dict() for match in init_matches]
+
+    return match_list
     
-    display_bracket_DFS(root)
-    # display_bracket_BFS(root)
+
 
 def startDoubleElim(tournament_id):
     #The winners side is a single elim bracket.

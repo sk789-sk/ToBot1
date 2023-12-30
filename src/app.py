@@ -9,7 +9,7 @@ import os
 
 from config import app, db
 from models import Match , Entrant , Tournament
-from BracketGen import startTournament, BiPartiteMatchMaking , FinalizeResults , CreateStandings
+from BracketGen import startTournament_Swiss, BiPartiteMatchMaking , FinalizeResults , CreateStandings , startSingleElim
 
 
 
@@ -142,20 +142,27 @@ def start_tournament(t_id):
     t = Tournament.query.filter(Tournament.id==t_id).first()
 
     if t.status == 'Initialized':
-        
-        try:
-            matches = startTournament(t_id)   
-                          
-            #I think these matches are not bound to session and is causing error
-            #i think it was needing db access to turn the matches into something that is jsonifyiable and there was a desync between the sessions. I have the bracket gen function returning them in jsonifyable format now.
+        print(t.format)
+        if t.format in ['Swiss','Round Robin']:
+            try:
+                matches = startTournament_Swiss(t_id)   
+                response = make_response(jsonify(matches),200)
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                print(f'Error {e} has occured')
+                response = make_response({'error': 'Failed to start'}, 500)
 
-            response = make_response(jsonify(matches),200)
+        elif t.format == 'Single Elimination':
+            try:
+                matches = startSingleElim(t_id)
 
-        except SQLAlchemyError as e:
-            print('we here?')
-            db.session.rollback()
-            print(f'Error {e} has occured')
-            response = make_response({'error': 'Failed to start'}, 500)
+                response = make_response(jsonify(matches),200)
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                print(f'Error {e} has occured')
+                response = make_response({'error':'failed to start'},500)
+        else:
+            response = make_response({'Error':'Chosen format not supported'},501)
     else:
         response = make_response({},403) #tournament is underway or completed
     
@@ -164,77 +171,131 @@ def start_tournament(t_id):
 @app.route('/UpdateMatch' , methods = ['PATCH'])   #this is really report loss
 def updateMatch():
     
-    #slower option would be to query the entrant_id from the Entrant list
-    #feel like there should be a way to do this in 1 query utilizing outerjoin and relationships that i need to go over.
-
-
     data = request.get_json() #I am given the tournament id and the discord_id here
 
     entrant_1_alias = aliased(Entrant)
     entrant_2_alias = aliased(Entrant)
 
-    t_round = Tournament.query.filter(Tournament.id == data['tournament_id']).first().current_round
+    tournament = Tournament.query.filter(Tournament.id == data['tournament_id']).first()
 
-    match = db.session.query(Match).outerjoin(entrant_1_alias, Match.player_1_id==entrant_1_alias.id ).outerjoin(entrant_2_alias, Match.player_2_id==entrant_2_alias.id).filter(or_(entrant_1_alias.discord_id==data['discord_id'],entrant_2_alias.discord_id==data['discord_id']),Match.round==t_round).first()
+    t_round = tournament.current_round
 
+    print(tournament.format)
 
-    if match:
-        #we have a match now lets update the match results. We pass the ID of the 
-        if match.result == None:
-
-            entrant_1 = Entrant.query.filter(match.player_1_id==Entrant.id).first()
-            entrant_2 = Entrant.query.filter(match.player_2_id==Entrant.id).first()
-
-            #this should be a list for when it goes to postgres
-
-            # entrant_2.opponents += f"{entrant_1.id},"
-            # entrant_1.opponents += f"{entrant_2.id},"
-
-            print(entrant_2.opponents)
-            print(entrant_1.opponents)
-            
-            #SQL-alchemy does not automatically track changes made to elements within an array. so in place mutations like .append() are not detected. Since its not detected there is no to the commit and no change to the database. 
-            
-            
-            
-            #2 options for this, instead of using .append we do a non inplace mutation, such as copying the array and reassigning it a value, in that case we are basically creating a new array and assigning it and it would be detected. The other and better option is to use MutableList extension 
-
-            # entrant_2_updated = entrant_2.opponents + [entrant_1.id]
-            # entrant_1_updated = entrant_1.opponents + [entrant_2.id]
-
-            # entrant_2.opponents = entrant_2_updated
-            # entrant_1.opponents = entrant_1_updated
-            
-            #MutableList
-            entrant_2.opponents.append(entrant_1.id)
-            entrant_1.opponents.append(entrant_2.id)            
-
-            #2 cases player_1 loss or player_2
-            if match.player_1.discord_id == data['discord_id']: # player 1 has lost
-                match.result = match.player_2_id #update match result
-                entrant_2.point_total +=3
-
-            else: #player 2 has lost
-                match.result = match.player_1_id
-                entrant_1.point_total +=3
-
-            try:
-                db.session.add_all([match,entrant_1,entrant_2])
-                db.session.commit()
+    if tournament.format in ['Swiss','Round Robin']:
+        #Create functions for this bit i think
                 
-                response = make_response({},204)
-            except SQLAlchemyError as e:
-                db.session.rollback()
-                print(f'Error {e} has occured')
-                response = make_response({'error': 'Server Error failed to update'},304)
-            except ValueError as ve:
-                db.session.rollback
-                print(f'Error {ve} has occured')
-                response = make_response({'Error':'Bad Data'},422)
+        match = db.session.query(Match).outerjoin(entrant_1_alias, Match.player_1_id==entrant_1_alias.id ).outerjoin(entrant_2_alias, Match.player_2_id==entrant_2_alias.id).filter(or_(entrant_1_alias.discord_id==data['discord_id'],entrant_2_alias.discord_id==data['discord_id']),Match.round==t_round,Match.tournament==tournament.id).first()
+        
+        print('???')
+
+        if match:
+        #we have a match now lets update the match results. We pass the ID of the 
+            if match.result == None:
+
+                entrant_1 = Entrant.query.filter(match.player_1_id==Entrant.id).first()
+                entrant_2 = Entrant.query.filter(match.player_2_id==Entrant.id).first()
+                
+                entrant_2.opponents.append(entrant_1.id)
+                entrant_1.opponents.append(entrant_2.id)            
+
+                #2 cases player_1 loss or player_2
+                if match.player_1.discord_id == data['discord_id']: # player 1 has lost
+                    match.result = match.player_2_id #update match result
+                    entrant_2.point_total +=3
+
+                else: #player 2 has lost
+                    match.result = match.player_1_id
+                    entrant_1.point_total +=3
+
+                try:
+                    db.session.add_all([match,entrant_1,entrant_2])
+                    db.session.commit()
+                    
+                    response = make_response({},204)
+                except SQLAlchemyError as e:
+                    db.session.rollback()
+                    print(f'Error {e} has occured')
+                    response = make_response({'error': 'Server Error failed to update'},304)
+                except ValueError as ve:
+                    db.session.rollback
+                    print(f'Error {ve} has occured')
+                    response = make_response({'Error':'Bad Data'},422)
+            else:
+                response = make_response({'Error':'Already Reported'},409)
         else:
-            response = make_response({'Error':'Already Reported'},409)
-    else:
-        response = make_response({'Error': 'Player is not in an active match'},400)
+            response = make_response({'Error': 'Player is not in an active match'},400)
+
+    if tournament.format in ['Single Elimination','Double Elimination']:
+        
+        match = db.session.query(Match).outerjoin(entrant_1_alias, Match.player_1_id==entrant_1_alias.id ).outerjoin(entrant_2_alias, Match.player_2_id==entrant_2_alias.id).filter(Match.tournament == tournament.id, or_(entrant_1_alias.discord_id==data['discord_id'],entrant_2_alias.discord_id==data['discord_id']),Match.result==None,Match.player_1_id!=None,Match.player_2_id!=None).first()
+
+        #Match where the person reporting is a participant, the result has not been reported and there are 2 players. I dont think that really matters the 2 players since it is a loser report system
+
+        #double Elim would have a losers next match as well potentially. 
+
+        print('hahaxd')
+
+        print(match)
+
+        if match:
+            #we have a match now lets update the match results. We pass the ID of the 
+            if match.result == None:
+
+                entrant_1 = Entrant.query.filter(match.player_1_id==Entrant.id).first()
+                entrant_2 = Entrant.query.filter(match.player_2_id==Entrant.id).first()
+                
+                #The finals has no winners next match also. 
+
+                winners_next_match = Match.query.filter(Match.id==match.winner_next_match_id).first()
+                
+                #this whole bit with the if/else has a better solution im sure
+
+                #2 cases player_1 loss or player_2
+                if match.player_1.discord_id == data['discord_id']: # player 1 has lost
+                    match.result = match.player_2_id #update match result
+                    
+                    if winners_next_match:
+
+                        if winners_next_match.player_1_id == None:
+                            winners_next_match.player_1_id = match.player_2_id
+                        else:
+                            winners_next_match.player_2_id = match.player_2_id
+
+                else: #player 2 has lost
+                    match.result = match.player_1_id
+
+                    if winners_next_match:
+
+                        if winners_next_match.player_1_id == None:
+                            winners_next_match.player_1_id = match.player_1_id
+                        else:
+                            winners_next_match.player_2_id = match.player_1_id
+
+                try:
+                    # db.session.add_all([match,entrant_1,entrant_2,winners_next_match])
+                    # db.session.commit()
+
+                    if winners_next_match:
+                        db.session.add_all([match,entrant_1,entrant_2,winners_next_match])
+                        db.session.commit()
+                        response = make_response(jsonify(winners_next_match.to_dict()),200)
+                    else:
+                        db.session.add_all([match,entrant_1,entrant_2])
+                        db.session.commit()
+                        response = make_response({},201)
+                except SQLAlchemyError as e:
+                    db.session.rollback()
+                    print(f'Error {e} has occured')
+                    response = make_response({'error': 'Server Error failed to update'},304)
+                except ValueError as ve:
+                    db.session.rollback
+                    print(f'Error {ve} has occured')
+                    response = make_response({'Error':'Bad Data'},422)
+            else:
+                response = make_response({'Error':'Already Reported'},409)
+        else:
+            response = make_response({'Error': 'Player is not in an active match'},400)
 
     return response
 
@@ -288,21 +349,7 @@ def end(t_id):
 
 
 
-@app.route('/returnEntrants/<int:t_id>')
-def returnEntrants(t_id):
 
-    #We get a tournament id, from the tournament ID we look at all entrants in a tournament with that id
-
-    entrants = Entrant.query.filter(Entrant.tournament_id==t_id).all()
-    print(entrants)
-
-    entrant_list = []
-
-    for entrant in entrants:
-        entrant_list.append(entrant.to_dict())
-
-    response = make_response(jsonify(entrant_list),200)
-    return response
 
 @app.route('/Standings/<int:t_id>', methods=['GET','POST'])
 def get_standings(t_id):
@@ -381,6 +428,20 @@ def return_all(t_id):
     response = make_response(jsonify(match_list),200)
     return response 
 
+@app.route('/returnEntrants/<int:t_id>')
+def returnEntrants(t_id):
+
+    #We get a tournament id, from the tournament ID we look at all entrants in a tournament with that id
+
+    entrants = Entrant.query.filter(Entrant.tournament_id==t_id).all()
+
+    entrant_list = []
+
+    for entrant in entrants:
+        entrant_list.append(entrant.to_dict())
+
+    response = make_response(jsonify(entrant_list),200)
+    return response
 if __name__ == '__main__':
 
     app.run(port=5556, debug=True) 

@@ -79,8 +79,9 @@ class Match(db.Model, SerializerMixin):
     #validations
     #serialization rules
 
-    serialize_rules = ('-player_1.matches_as_P1','-player_1.matches_as_P2','-player_2.matches_as_P1','-player_2.matches_as_P2')  
+    serialize_rules = ('-player_1.matches_as_P1','-player_1.matches_as_P2','-player_2.matches_as_P1','-player_2.matches_as_P2','-parent.children','-children.parent','-children.children','-parent.parent')  
     #'-parent.children','children.parent' will almost certainly need these as rules as well. 
+    #children.children and parent.parent shows the path to the root node for each entrant which is probably unnecessary a.
 
 
     #repr

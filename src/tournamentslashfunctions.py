@@ -147,9 +147,9 @@ async def drop_slash(interaction:discord.Interaction,client:commands.Bot):
 
 async def start_slash(interaction:discord.Interaction,client:commands.Bot):
     #Case where there are no tournaments needs to be added
-    
+    status = 'Initialized'
     if tournament_cache.get(interaction.guild_id) is None:
-        r = requests.get(f'http://127.0.0.1:5556//returntournaments/{interaction.guild_id}')
+        r = requests.get(f'http://127.0.0.1:5556/returntournaments/{interaction.guild_id}/{status}')
         data = []
         if r.ok:
             #Create a list of discord.Select_Options
@@ -161,6 +161,7 @@ async def start_slash(interaction:discord.Interaction,client:commands.Bot):
 
         else:
             await interaction.response.send_message("Cannot fetch tournaments, use prefix command with tournament id")
+            return
     else:
         options_list = await get_cache_data(tournament_cache,interaction.guild_id)
 
@@ -214,8 +215,13 @@ async def start_slash(interaction:discord.Interaction,client:commands.Bot):
         
             await interaction.response.send_message(message)
         else:
-            await interaction.response.send_message('Tournament has already begun')
 
+            if r.status_code == 403:
+                await interaction.response.send_message('Tournament has already begun')
+            elif r.status_code == 500:
+                await interaction.response.send_message('Error starting tournament, try again')
+            elif r.status_code == 501:
+                await interaction.response.send_message('Tournament format is not supported at this time')
 
     except asyncio.TimeoutError:
         await interaction.response.send_message('Timed out. Try again', ephemeral=True)
@@ -263,8 +269,28 @@ async def loss_slash(interaction:discord.Interaction,client:commands.Bot):
 
     r_update = requests.patch(f'http://127.0.0.1:5556/UpdateMatch', json=data)
 
-    if r_update.ok:
+    #I feel like this could be a dictionary of status codes to responses instead of this if-else. 
+    if r_update.status_code == 204:
         response = f'{interaction.user.name} loss reported sucessfully'
+    elif r_update.status_code ==200:
+        data=r_update.json()
+        #loser is eliminated, Case 2 winner is waiting on previous match results. Case 1 winner's match is ready
+        message = f'{interaction.user.name} has been eliminated'
+
+        if data['player_1'] != None and data['player_2'] != None: 
+            #New Match
+            p1 = await client.fetch_user(data['player_1']['discord_id'])
+            p2 = await client.fetch_user(data['player_2']['discord_id'])
+
+            message += f'\n New Match: {p1.mention} vs {p2.mention}'
+
+        else: #We set it up so that P1 is updated to the first one to be get to the match
+            p1 = await client.fetch_user(data['player_1']['discord_id'])
+            message += f'\n {p1.name} is waiting on other match results'
+            
+        response = message
+    elif r_update.status_code == 201:
+        response = f'All matches are completed, use standings to see final results'    
     elif r_update.status_code == 409:
         response = f'Match Result has already been reported'
     else:
@@ -395,7 +421,6 @@ async def end_slash(interaction:discord.Interaction,client:commands.Bot):
         message = f'something went wrong'
 
     await interaction.response.send_message(message)
-
 
 async def standings_slash(interaction:discord.Interaction,client:commands.Bot):
     #Standings mid tournament worth looking at Im just gonna do it for finished and can have a seperate command for mid if wanted

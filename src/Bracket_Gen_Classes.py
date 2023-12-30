@@ -34,19 +34,38 @@ def next_power_of_2(n):
     return 1 << msb_position
 
 def build_single_elimination_bracket(player_list,t_id):
+    #
+
     matches = []
 
     #create initial matches
     for x,y in zip(*[iter(player_list)]*2): #this works from documentation as a trick 
-        match_leaf = TreeNode(player_1=x,player_2=y)
+        if y == None and x !=None:
+            match_leaf = TreeNode(player_1=x,player_2=y,winner=x)    
+        elif x == None and y !=None:
+            match_leaf = TreeNode(player_1=x,player_2=y,winner=y)
+        else:
+            match_leaf = TreeNode(player_1=x,player_2=y)
+        
         matches.append(match_leaf)
     
     #create subsequent matches
+    
+    #If the  initial matches come in ordered this will work for 
     while len(matches) >1:
-        print(len(matches))
         prev_1 = matches.pop(0)
         prev_2 = matches.pop(0)
-        new_match = TreeNode(player_1=None,player_2=None,left=prev_1, right= prev_2)
+
+        p1_spot = None
+        p2_spot = None
+
+        if prev_1.winner != None:
+            p1_spot = prev_1.winner
+        if prev_2.winner !=None:
+            p2_spot =prev_2.winner
+
+
+        new_match = TreeNode(player_1=p1_spot,player_2=p2_spot,left=prev_1, right= prev_2)
         matches.append(new_match)
     return matches[0] #returns the root node
 
@@ -81,7 +100,7 @@ def tree2db(root,t_id,parent_id=None):
 
         new_Match = Match(
             tournament = t_id,
-            result = None,
+            result = root.winner.id if root.winner else None,
             round = None,
             player_1_id = root.player_1.id if root.player_1 else None,
             player_2_id = root.player_2.id if root.player_2 else None,
@@ -90,9 +109,15 @@ def tree2db(root,t_id,parent_id=None):
         )
 
         with app.app_context():
+            
             db.session.add(new_Match)
-            db.session.flush()
+            
+            #db.session.flush()
+            
             db.session.commit()
+
+            #I do not like this i would rather flush get the id, defer the constraint check until the end of the transaction and commit all the changes at once. The way this is set up now if this treedb stopped mid execution I would just end up with some matches in the database that are stranded. Better to commit at the end once i have all the matches. 
+
             root.db_id = new_Match.id
             print(root.db_id)
 
@@ -113,35 +138,3 @@ if __name__ == "__main__":
 
 
 
-# class TreeNode:
-#     def __init__(self, value):
-#         self.value = value
-#         self.left = None
-#         self.right = None
-
-# def build_single_elimination_bracket(players):
-#     matches = []
-#     for i in range(0, len(players), 2):
-#         match = TreeNode((players[i], players[i+1]))
-#         matches.append(match)
-
-#     while len(matches) > 1:
-#         new_matches = []
-#         for i in range(0, len(matches), 2):
-#             match = TreeNode((None, None))
-#             match.left = matches[i]
-#             match.right = matches[i+1]
-#             new_matches.append(match)
-#         matches = new_matches
-
-#     return matches[0]
-
-# def print_bracket(root, depth=0):
-#     if root:
-#         print("  " * depth + str(root.value))
-#         print_bracket(root.left, depth + 1)
-#         print_bracket(root.right, depth + 1)
-
-# players = ["Player1", "Player2", "Player3", "Player4", "Player5", "Player6", "Player7", "Player8"]
-# root = build_single_elimination_bracket(players)
-# print_bracket(root)
