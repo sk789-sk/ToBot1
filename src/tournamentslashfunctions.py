@@ -10,6 +10,7 @@ from botHelperfunctions import create_table
 #tournament_cache, set_cache, get_cache_data , start_cache_timer
 from bot_ui_models import dropdownView
 
+base = 'http://127.0.0.1:5556/'
 
 async def join_slash_t(interaction:discord.Interaction,client:commands.Bot): 
     if tournament_cache.get(interaction.guild_id) is None:
@@ -62,7 +63,7 @@ async def join_slash_t(interaction:discord.Interaction,client:commands.Bot):
             elif r.status_code == 409:
                 response = f'{interaction.user.name} is already registered'
             else:
-                response = f'Error, please try again. If error persists contact ___'
+                response = f'Error, please try again.'
         
             await interaction.response.send_message(response, ephemeral=True)
 
@@ -485,4 +486,51 @@ async def standings_slash(interaction:discord.Interaction,client:commands.Bot):
 
     await interaction.response.send_message(content=f'```\n{message}\n```')
 
+async def register_entrant(interaction:discord.Interaction,client:commands.Bot, name, t_name, discord_id=None):
+    #If You want to register 
+    # a user without a discord_account for our uses
+    #get the tournaments that are going on in the server that are not yet started
+    t_list = []
+    guild_id = interaction.guild_id
+    status = 'Underway'
+    r = requests.get(f'http://127.0.0.1:5556/returntournaments'/{guild_id}/{status})
+    data = []
 
+    if r.ok:
+        for tournament in r.json():
+            data.append(discord.SelectOption(label=f'{tournament["name"]}',value=tournament["id"],description=tournament['name']))            
+    else:
+        await interaction.response.send_message("Error getting tournament list")
+        return
+
+    #only need a dropdown if multiple tournaments
+    if len(data) == 0:
+        print('no active tournaments')
+        return
+    elif len(data) == 1:
+        print("register logic")
+        t_id = data['id']
+        username = name
+        new_entrant_data = {
+            'tournament_id' : data['id'],
+            'username' : name,
+            'discord_id' : discord_id
+        }
+
+        r = requests.post(f'http://127.0.0.1:5556/JoinTournament/{t_id}', json=data)
+        
+        if r.ok:
+            response = f'Sucessfully registered {name} for tournament name'
+            await interaction.response.send_message(response)
+        else:
+            if r.status_code == 403:
+                response = f'Tournament is underway, unable to join'
+            elif r.status_code == 409:
+                response = f'{interaction.user.name} is already registered'
+            else:
+                response = f'Error, please try again.'
+
+            await interaction.response.send_message(response, ephemeral=True)
+    else:
+        print('find out which tourney and then register logic')
+        await interaction.response.send_message("",view=dropdownView(options=data), ephemeral=True)

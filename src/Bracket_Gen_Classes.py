@@ -40,18 +40,23 @@ def build_single_elimination_bracket(player_list,t_id):
 
     #create initial matches
     for x,y in zip(*[iter(player_list)]*2): #this works from documentation as a trick 
-        if y == None and x !=None:
-            match_leaf = TreeNode(player_1=x,player_2=y,winner=x)    
-        elif x == None and y !=None:
-            match_leaf = TreeNode(player_1=x,player_2=y,winner=y)
-        else:
-            match_leaf = TreeNode(player_1=x,player_2=y)
+        winner = x if y is None else y if x is None else None
+        match_leaf = TreeNode(player_1=x, player_2=y,winner=winner)
+        
+        # if y == None and x !=None:
+        #     match_leaf = TreeNode(player_1=x,player_2=y,winner=x)    
+        # elif x == None and y !=None:
+        #     match_leaf = TreeNode(player_1=x,player_2=y,winner=y)
+        # else:
+        #     match_leaf = TreeNode(player_1=x,player_2=y)
         
         matches.append(match_leaf)
     
     #create subsequent matches
     
     #If the  initial matches come in ordered this will work for 
+    #loop through the matches, combine the first 2 into 1 and then push that to the end of the que. When the que has only 1 match left that would be the root node.
+
     while len(matches) >1:
         prev_1 = matches.pop(0)
         prev_2 = matches.pop(0)
@@ -63,7 +68,6 @@ def build_single_elimination_bracket(player_list,t_id):
             p1_spot = prev_1.winner
         if prev_2.winner !=None:
             p2_spot =prev_2.winner
-
 
         new_match = TreeNode(player_1=p1_spot,player_2=p2_spot,left=prev_1, right= prev_2)
         matches.append(new_match)
@@ -97,7 +101,6 @@ def tree2db(root,t_id,parent_id=None):
     #I think we should do DFS traversal then. so we have the parent into child for easier referencing. 
 
     if root:
-
         new_Match = Match(
             tournament = t_id,
             result = root.winner.id if root.winner else None,
@@ -129,12 +132,4 @@ def tree2db(root,t_id,parent_id=None):
     return 
 
 if __name__ == "__main__":
-    print(next_power_of_2(6))
-    print(next_power_of_2(64))
-    print(next_power_of_2(33)) 
-
     pass
-
-
-
-

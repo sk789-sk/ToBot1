@@ -457,7 +457,9 @@ def startSingleElim(tournament_id):
     
     #### RANDOM SEEDING LIST###
     random.shuffle(entrants)
+    print(entrants)
     byes_needed = next_power_of_2(len(entrants)) - len(entrants)
+    print(byes_needed)
     new_entrants = []
     
     while byes_needed >0:
@@ -531,5 +533,5 @@ def testouter(t_id,disc_id):
 
 
 if __name__ == "__main__":
-    startSingleElim(6)
+    startSingleElim(2)
     pass
