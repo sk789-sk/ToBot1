@@ -226,10 +226,11 @@ def startTournament_Swiss(tourney_id):
     #Calculate the number of rounds in the tournament
 
     print(tourney_info)
+    print(tourney_info.status)
 
-    if tourney_info.status == 'Swiss':
+    if tourney_info.format == 'Swiss':
         round_total = ceil(log2(len(entrants)))
-    elif tourney_info.status == 'Round Robin':
+    elif tourney_info.format == 'Round Robin':
         round_total = len(entrants) - 1
 
 
@@ -500,14 +501,11 @@ def startSingleElim(tournament_id):
 
     return match_list
     
-
-
 def startDoubleElim(tournament_id):
     #The winners side is a single elim bracket.
     #the losers side is a single elim bracket, but in between each level there is an additional set of matches where the winners side losers go down. Basically instead of cutting the amoutn of entrants in half with each round it takes 2 rounds to do it. 
     #We then create a match where the lft child is the winner of the winners bracket and the right hcild is the winner of the losers bracket to combine the 2 trees into 1. 
     pass
-
 
 def testouter(t_id,disc_id):
 
@@ -530,7 +528,6 @@ def testouter(t_id,disc_id):
 
 
         # print(match[0].player_1_id.discord_id)
-
 
 if __name__ == "__main__":
     startSingleElim(2)

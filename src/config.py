@@ -18,8 +18,9 @@ DATABASE = os.environ.get(
 
 postgres_migrations_repo = os.path.join(BASE_DIR,'migrations','postgresql')
 
-POSTGRES_DATABASE = f'postgresql://{os.getenv("DB_Username")}:{os.getenv("DB_Password")}@{os.getenv("DB_Host")}/{os.getenv("DB_name")}'
+# POSTGRES_DATABASE = f'postgresql://{os.getenv("DB_Username")}:{os.getenv("DB_Password")}@{os.getenv("DB_Host")}/{os.getenv("DB_name")}'
 
+POSTGRES_DATABASE = f'postgresql:///totest'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = POSTGRES_DATABASE
 
@@ -39,6 +40,6 @@ metadata = MetaData(naming_convention=convention)
 
 db = SQLAlchemy(metadata=metadata)
 
-migrate = Migrate(app, db, directory=postgres_migrations_repo)
+migrate = Migrate(app, db)
 
 db.init_app(app)
