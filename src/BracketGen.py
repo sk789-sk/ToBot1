@@ -14,7 +14,7 @@ from sqlalchemy import or_, desc
 
 from config import app, db
 from models import Match , Entrant , Tournament
-from Bracket_Gen_Classes import next_power_of_2, build_single_elimination_bracket, display_bracket_DFS, display_bracket_BFS ,tree2db
+from Bracket_Gen_Classes import next_power_of_2, build_single_elimination_bracket_root, display_bracket_DFS, display_bracket_BFS ,tree2db
 
 def CreateMatches(tourney_id):
     #given a graph of the tournament
@@ -210,41 +210,33 @@ def BiPartiteMatchMaking(tourney_id):
 
     return match_list
 
-def startTournament_Swiss(tourney_id):
+def startTournament_Swiss(entrant_list, tournament_obj):
     #This is the same method for creating RR
     #Start the tournament which would then create the initial matches.
     #We pass in a list of entrants and create the initial graph
     #would it be better to just have this only make the matches and leave all database related things to be passed into it. Instead of giving it an ID instead we would pass it a graph 
 
-    tourney_graph = nx.Graph() 
-    
-    #1. First get the entrants in the tournament
-    with app.app_context():
-        entrants = Entrant.query.filter(Entrant.tournament_id==tourney_id).all()
-        tourney_info = Tournament.query.filter(Tournament.id == tourney_id).first()
+    db_items_to_update = []
+    t_id = tournament_obj.id
 
     #Calculate the number of rounds in the tournament
 
-    print(tourney_info)
-    print(tourney_info.status)
 
-    if tourney_info.format == 'Swiss':
-        round_total = ceil(log2(len(entrants)))
-    elif tourney_info.format == 'Round Robin':
-        round_total = len(entrants) - 1
-
-
+    if tournament_obj.format == 'Swiss':
+        round_total = ceil(log2(len(entrant_list)))
+    elif tournament_obj.format == 'Round Robin':
+        round_total = len(entrant_list) - 1
 
     #2. Add the entrants to the tournament
     
+    #shuffle entrants
+    random.shuffle(entrant_list)
     tourney_graph = nx.Graph() 
-    tourney_graph.add_nodes_from(entrants)
-
-    #shuffle entrants as well
+    tourney_graph.add_nodes_from(entrant_list)
 
     all_pairings = []
 
-    for pair in combinations(entrants,2):
+    for pair in combinations(entrant_list,2):
         tourney_graph.add_edge(pair[0],pair[1],weight=pair[0].point_total+pair[1].point_total)
         
         all_pairings.append(pair)
@@ -253,7 +245,7 @@ def startTournament_Swiss(tourney_id):
 
     #4. We have the pairings and now we need to turn them into match objects to store in the database. Extract the information from the Entrant
 
-    matches = []   #List of match objects
+    matches_list = []   #List of match objects
     match_list = [] #List of json matches that will be turned into json for the bot
 
     paired_entrants = set()
@@ -261,67 +253,58 @@ def startTournament_Swiss(tourney_id):
 
     for pair in pairings:
         new_Match = Match(
-            tournament = tourney_id,
+            tournament = t_id,
             round = 1,
             player_1_id = pair[0].id,
             player_2_id = pair[1].id,
         )
-        matches.append(new_Match)
+        matches_list.append(new_Match)
         paired_entrants.update(pair)
-
+        db_items_to_update.append(new_Match)
         # print(new_Match)
-    update_list = []
+    
+    if len(entrant_list)%2 !=0:
+        # Figure out who got the bye and update their values
 
-    if len(entrants)%2 !=0:
-
-        print(set(entrants))
+        print(set(entrant_list))
         print(paired_entrants)
 
-        unmatched = set(entrants).difference(paired_entrants)
+        unmatched = set(entrant_list).difference(paired_entrants)
         
         
         print(unmatched)
 
-        val = unmatched.pop()
+        player_with_bye = unmatched.pop()
 
         new_Match = Match(
-            tournament = tourney_id,
+            tournament = t_id,
             round = 1,
-            player_1_id = val.id,
+            player_1_id = player_with_bye.id,
             player_2_id = None,
-            result = val.id
+            result = player_with_bye.id
         )
-        val.point_total +=3
-        val.bye += 1
-        update_list.append(val)
-        matches.append(new_Match)
-    
-    tourney_info.current_round = 1
-    tourney_info.status = 'Underway'
-    tourney_info.total_round = round_total
+        player_with_bye.point_total +=3
+        player_with_bye.bye += 1
+        matches_list.append(new_Match)
+        db_items_to_update.append(player_with_bye)
 
-    with app.app_context():
+    tournament_obj.current_round = 1
+    tournament_obj.status = 'Underway'
+    tournament_obj.total_round = round_total
 
-        try:
-            db.session.add_all(matches + [tourney_info] +[val])
-            # db.session.add(tourney_info)
-            db.session.commit()
+    db_items_to_update.extend(matches_list)
+    db_items_to_update.append(tournament_obj)
 
-            for match in matches:
-                match_list.append(match.to_dict())
+    tournament_start_results = {
+        'matches' : matches_list,
+        'db_items' : db_items_to_update,
+        'tournament_info' : tournament_obj,
+        'bye_player' : player_with_bye if len(entrant_list)%2 !=0 else None,
+        'round' : tournament_obj.current_round,
+    }
 
+    return tournament_start_results
 
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            print(f'Error {e} has occured')
-            response = make_response({'error': 'Failed to create Matches'}, 500)
-            raise
-
-        except ValueError as ve:
-            print(f'Error {ve} has occured')
-            raise
-
-    return match_list
 
 def FinalizeResults(tournament_id):
     #1. Set the tournament status to completed
@@ -430,19 +413,20 @@ def CreateStandings(tournament_id, *args):
 
     with app.app_context():
         query = Entrant.query.filter(Entrant.tournament_id==tournament_id).order_by(desc(Entrant.point_total))
-        
+        order_criteria = [desc(Entrant.point_total)]
         for arg in args:
             if not hasattr(Entrant, arg):
                 print(f'Invalid attribute {arg}. Continuing with next attribute' )
                 continue
-            
+            order_criteria.append(desc(getattr(Entrant,arg)))
             query = query.order_by(desc(getattr(Entrant,arg)))
-
+        
+        query = Entrant.query.filter(Entrant.tournament_id == tournament_id).order_by(*order_criteria)
         ordered_entrants = query.all()
 
     return(ordered_entrants)
 
-def startSingleElim(tournament_id):
+def createSingleElimBracket(entrant_list, tournament_obj):
     #Create a single Elimination bracket from entrants
     #Steps: 
     # 1. Return the list of entrants in the tournament. 
@@ -452,40 +436,35 @@ def startSingleElim(tournament_id):
     # 5. Add these matches to the database
     # 5. Matches where the entrant wins due to a bye is automatically updated, before we send out the pairings. 
 
-    with app.app_context():
-        entrants = Entrant.query.filter(Entrant.tournament_id == tournament_id).all()
-        Tourney = Tournament.query.filter(Tournament.id == tournament_id).first()
-    
+    print('creating the singleElimBraket')
     #### RANDOM SEEDING LIST###
-    random.shuffle(entrants)
-    print(entrants)
-    byes_needed = next_power_of_2(len(entrants)) - len(entrants)
+    tournament_id = tournament_obj.id
+    random.shuffle(entrant_list)
+    print(entrant_list)
+    byes_needed = next_power_of_2(len(entrant_list)) - len(entrant_list)
     print(byes_needed)
     new_entrants = []
     
     while byes_needed >0:
-        new_entrants.append(entrants.pop(0))
+        new_entrants.append(entrant_list.pop(0))
         new_entrants.append(None)
         byes_needed -=1
-    new_entrants.extend(entrants)
+    new_entrants.extend(entrant_list)
     
     print(new_entrants)
-    ### Random Seeding List### 
 
-    ###IF ENTRANTS ARE SEEDED###
-    ###follow method created in notebook###
-    ###IF ENTRANTS ARE SEEDED###
     
     #Create the bracket
-    root = build_single_elimination_bracket(new_entrants,tournament_id)
+    root = build_single_elimination_bracket_root(new_entrants,tournament_id)
     
+    return root
+
     #Transfer bracket to db
     tree2db(root,tournament_id)
     display_bracket_DFS(root)   
     
 
-
-    Tourney.status = 'Underway'
+    tournament_obj.status = 'Underway'
 
     #Get the Matches
 
@@ -530,5 +509,5 @@ def testouter(t_id,disc_id):
         # print(match[0].player_1_id.discord_id)
 
 if __name__ == "__main__":
-    startSingleElim(2)
+    # startSingleElim(2)
     pass

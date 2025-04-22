@@ -4,15 +4,16 @@ INSERT INTO Users (username) VALUES ('test');
 
 INSERT INTO Tournaments (name,game,format,creator) VALUES ('Test1','YGO','Swiss',1);
 
+Entrants needs username_, point total, dropped,tournament_id, 
 
-INSERT INTO Entrants (username, point_total, tournament_id,opponents) VALUES ('WZ', 0, 1,"");
-INSERT INTO Entrants (username, point_total, tournament_id,opponents) VALUES ('Firdaus', 0, 1,"");
-INSERT INTO Entrants (username, point_total, tournament_id,opponents) VALUES ('shamu', 0, 1,"");
-INSERT INTO Entrants (username, point_total, tournament_id,opponents) VALUES ('trapmoneys', 0, 1,"");
-INSERT INTO Entrants (username, point_total, tournament_id,opponents) VALUES ('inzy', 0, 1,"");
-INSERT INTO Entrants (username, point_total, tournament_id,opponents) VALUES ('bendystraw', 0, 1,"");
-INSERT INTO Entrants (username, point_total, tournament_id,opponents) VALUES ('loofbone', 0, 1,"");
-INSERT INTO Entrants (username, point_total, tournament_id,opponents) VALUES ('PinappleBun', 0, 1,"");
+INSERT INTO Entrants (username, point_total, tournament_id,opponents,dropped) VALUES ('WZ', 0, 2,"",false);
+INSERT INTO "Entrants" (username, point_total, tournament_id,dropped) VALUES ('Firdaus', 0, 2,false);
+INSERT INTO Entrants (username, point_total, tournament_id,opponents,dropped) VALUES ('shamu', 0, 2,"",false);
+INSERT INTO Entrants (username, point_total, tournament_id,opponents,dropped) VALUES ('trapmoneys', 0, 2,"",false);
+INSERT INTO Entrants (username, point_total, tournament_id,opponents,dropped) VALUES ('inzy', 0, 2,"",false);
+INSERT INTO Entrants (username, point_total, tournament_id,opponents,dropped) VALUES ('bendystraw', 0, 2,"",false);
+INSERT INTO Entrants (username, point_total, tournament_id,opponents,dropped) VALUES ('loofbone', 0, 2,"",false);
+INSERT INTO "Entrants" (username, point_total, tournament_id,opponents,dropped) VALUES ('PinappleBun', 0, 2,'{}',false);
 
 
 INSERT INTO Matches (round, tournament, player_1,player_2) VALUES (1,1,1,2);

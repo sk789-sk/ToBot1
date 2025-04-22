@@ -9,7 +9,8 @@ import os
 
 from config import app, db
 from models import Match , Entrant , Tournament
-from BracketGen import startTournament_Swiss, BiPartiteMatchMaking , FinalizeResults , CreateStandings , startSingleElim
+from BracketGen import startTournament_Swiss, BiPartiteMatchMaking , FinalizeResults , CreateStandings , createSingleElimBracket 
+from Bracket_Gen_Classes import tree2db
 
 
 
@@ -50,6 +51,7 @@ def Join_Tournament(t_id):
 
     data = request.get_json()
     tournament_status = Tournament.query.filter(Tournament.id==t_id).first().status
+    
     entered_status = Entrant.query.filter(Entrant.tournament_id==t_id,Entrant.discord_id==data['discord_id']).first()
 
     if request.method == 'POST':
@@ -138,24 +140,55 @@ def drop_entrant(t_id):
 
 @app.route('/start/<int:t_id>')
 def start_tournament(t_id):
-
-    t = Tournament.query.filter(Tournament.id==t_id).first()
-
-    if t.status == 'Initialized':
-        print(t.format)
-        if t.format in ['Swiss','Round Robin']:
+    print('???')
+    tournament_item = Tournament.query.filter(Tournament.id==t_id).first()
+    entrants_list = Entrant.query.filter(Entrant.tournament_id==t_id).all()
+    print('huh')
+    if tournament_item.status == 'Initialized':
+        if tournament_item.format in ['Swiss','Round Robin']:
             try:
-                matches = startTournament_Swiss(t_id)   
-                response = make_response(jsonify(matches),200)
+                init_tournament_vals = startTournament_Swiss(entrants_list, tournament_item)
+                
+                matches = init_tournament_vals['matches']
+                db_update_items = init_tournament_vals['db_items']
+
+                print(db_update_items)
+
+                #Set the things up for the db now
+                print(db_update_items)
+
+                db.session.add_all(db_update_items)
+                
+                print('db add_all')
+
+                db.session.commit()
+
+                
+                match_list_json = []
+                for match in matches:
+                    match_list_json.append(match.to_dict())
+                response = make_response(jsonify(match_list_json),200)
             except SQLAlchemyError as e:
                 db.session.rollback()
                 print(f'Error {e} has occured')
                 response = make_response({'error': 'Failed to start'}, 500)
 
-        elif t.format == 'Single Elimination':
+        elif tournament_item.format == 'Single Elimination':
+            print('single elim')
             try:
-                matches = startSingleElim(t_id)
+                #Get the root node
+                #Use the root node to create the matches and add them to the database
+                #Return the Matches
+                print('haha')
+                root_node = createSingleElimBracket(entrants_list, tournament_item)
+                
+                #Get the list of matches from the root node and add then to the database
 
+                print('beforetreedb')
+                tree2db(root_node, t_id)
+
+                # db.session.commit()
+                print('commited to the db the matchlist')
                 response = make_response(jsonify(matches),200)
             except SQLAlchemyError as e:
                 db.session.rollback()
@@ -185,6 +218,7 @@ def updateMatch():
     if tournament.format in ['Swiss','Round Robin']:
         #Create functions for this bit i think
                 
+
         match = db.session.query(Match).outerjoin(entrant_1_alias, Match.player_1_id==entrant_1_alias.id ).outerjoin(entrant_2_alias, Match.player_2_id==entrant_2_alias.id).filter(or_(entrant_1_alias.discord_id==data['discord_id'],entrant_2_alias.discord_id==data['discord_id']),Match.round==t_round,Match.tournament==tournament.id).first()
         
         print('???')
@@ -396,6 +430,9 @@ def return_joined_inGuild(user_id,guild_id):
 
     response = make_response(jsonify(tournament_list),200)
     return response
+
+
+
 
 @app.route('/joinedunderwaytournaments/<int:user_id>/<int:guild_id>')
 def return_joined_underway_inGuild(user_id,guild_id):

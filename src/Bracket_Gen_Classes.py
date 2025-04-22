@@ -33,7 +33,7 @@ def next_power_of_2(n):
     # Return 2 raised to the power of the next highest bit position
     return 1 << msb_position
 
-def build_single_elimination_bracket(player_list,t_id):
+def build_single_elimination_bracket_root(player_list):
     #
 
     matches = []
@@ -99,6 +99,7 @@ def tree2db(root,t_id,parent_id=None):
     #i guess we could do this where we start with the root, we add the values 
     #We then access the children of the node which now has an id that we can use for the parent column. 
     #I think we should do DFS traversal then. so we have the parent into child for easier referencing. 
+    #Turn the tree node into Matches. Why dont I just make a tree of Matches? Because matches are the DB item so I dont want the extra tree information stored in there. I think that was my reasoning 
 
     if root:
         new_Match = Match(
@@ -114,8 +115,7 @@ def tree2db(root,t_id,parent_id=None):
         with app.app_context():
             
             db.session.add(new_Match)
-            
-            #db.session.flush()
+            # db.session.flush()
             
             db.session.commit()
 
@@ -126,9 +126,6 @@ def tree2db(root,t_id,parent_id=None):
 
         tree2db(root.left, t_id=t_id,parent_id=root.db_id)
         tree2db(root.right, t_id=t_id,parent_id=root.db_id)
-    
-
-
     return 
 
 if __name__ == "__main__":
